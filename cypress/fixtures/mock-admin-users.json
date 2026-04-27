@@ -1,0 +1,20 @@
+[
+  {
+    "id": "admin-uuid-1234",
+    "displayName": "Admin User",
+    "email": "admin@example.com",
+    "role": "admin",
+    "status": "active",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "lastLogin": "2025-01-01T10:00:00Z"
+  },
+  {
+    "id": "user-uuid-5678",
+    "displayName": "John Doe",
+    "email": "john.doe@example.com",
+    "role": "customer",
+    "status": "active",
+    "createdAt": "2024-02-01T00:00:00Z",
+    "lastLogin": "2025-01-01T09:00:00Z"
+  }
+]

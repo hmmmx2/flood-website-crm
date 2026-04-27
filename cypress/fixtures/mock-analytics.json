@@ -1,0 +1,13 @@
+{
+  "totalNodes": 111,
+  "activeNodes": 98,
+  "alertingNodes": 7,
+  "totalEvents": 204500,
+  "totalReports": 23,
+  "eventsByLevel": {
+    "0": 120000,
+    "1": 60000,
+    "2": 18000,
+    "3": 6500
+  }
+}

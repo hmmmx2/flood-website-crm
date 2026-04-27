@@ -1,0 +1,30 @@
+{
+  "content": [
+    {
+      "id": "blog-uuid-001",
+      "title": "Understanding Flood Risk Levels",
+      "body": "Floods are categorised into four risk levels...",
+      "category": "Education",
+      "imageKey": "flood-risk",
+      "imageUrl": null,
+      "isFeatured": true,
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-01T00:00:00Z"
+    },
+    {
+      "id": "blog-uuid-002",
+      "title": "How to Prepare for Floods",
+      "body": "Preparation is key to flood safety...",
+      "category": "Safety",
+      "imageKey": "flood-prep",
+      "imageUrl": null,
+      "isFeatured": false,
+      "createdAt": "2025-01-02T00:00:00Z",
+      "updatedAt": "2025-01-02T00:00:00Z"
+    }
+  ],
+  "totalElements": 2,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20
+}

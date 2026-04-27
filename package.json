@@ -1,0 +1,48 @@
+{
+  "name": "flood-management-crm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@react-google-maps/api": "^2.20.7",
+    "@upstash/redis": "^1.37.0",
+    "clsx": "^2.1.1",
+    "mongodb": "^7.0.0",
+    "next": "16.2.1",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.5.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/google.maps": "^3.58.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "baseline-browser-mapping": "^2.8.32",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "tailwindcss": "^4",
+    "ts-jest": "^29.4.6",
+    "typescript": "^5"
+  }
+}

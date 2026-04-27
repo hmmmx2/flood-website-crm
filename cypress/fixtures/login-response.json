@@ -1,0 +1,14 @@
+{
+  "session": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbi11dWlkIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjo5OTk5OTk5OTk5fQ.mock",
+    "refreshToken": "mock-refresh-token-admin",
+    "accessExpiresAt": "2099-01-01T00:00:00Z"
+  },
+  "user": {
+    "id": "admin-uuid-1234",
+    "email": "admin@example.com",
+    "fullName": "Admin User",
+    "avatarUrl": null,
+    "role": "admin"
+  }
+}

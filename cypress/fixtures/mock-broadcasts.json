@@ -1,0 +1,22 @@
+[
+  {
+    "id": "broadcast-uuid-001",
+    "title": "Flood Warning - Sungai Sarawak",
+    "body": "Water levels are rising. Please evacuate low-lying areas.",
+    "targetZone": "Zone A",
+    "severity": "warning",
+    "sentBy": "admin-uuid-1234",
+    "sentAt": "2025-01-01T08:00:00Z",
+    "recipientCount": 245
+  },
+  {
+    "id": "broadcast-uuid-002",
+    "title": "Critical Alert - Sungai Tabuan",
+    "body": "Critical flooding detected. Immediate evacuation required.",
+    "targetZone": "Zone B",
+    "severity": "critical",
+    "sentBy": "admin-uuid-1234",
+    "sentAt": "2025-01-01T09:30:00Z",
+    "recipientCount": 102
+  }
+]
