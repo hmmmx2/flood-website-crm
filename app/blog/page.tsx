@@ -172,7 +172,7 @@ function BlogFormModal({
               value={form.title}
               onChange={e => set("title", e.target.value)}
               placeholder="Enter article title..."
-              className={`w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${
+              className={`w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 isDark ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
               }`}
             />
@@ -188,7 +188,7 @@ function BlogFormModal({
                   onClick={() => set("category", cat)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
                     form.category === cat
-                      ? "bg-red-600 text-white border-red-600"
+                      ? "bg-blue-600 text-white border-blue-600"
                       : isDark
                         ? "border-gray-600 text-gray-400 hover:border-gray-400"
                         : "border-gray-300 text-gray-600 hover:border-gray-400"
@@ -210,7 +210,7 @@ function BlogFormModal({
               value={form.imageUrl}
               onChange={e => set("imageUrl", e.target.value)}
               placeholder="https://example.com/image.jpg"
-              className={`w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 ${
+              className={`w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 isDark ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
               }`}
             />
@@ -224,7 +224,7 @@ function BlogFormModal({
             </div>
             <button
               onClick={() => set("isFeatured", !form.isFeatured)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isFeatured ? "bg-red-600" : isDark ? "bg-gray-600" : "bg-gray-300"}`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isFeatured ? "bg-blue-600" : isDark ? "bg-gray-600" : "bg-gray-300"}`}
             >
               <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.isFeatured ? "translate-x-6" : "translate-x-1"}`} />
             </button>
@@ -240,7 +240,7 @@ function BlogFormModal({
               onChange={e => set("body", e.target.value)}
               rows={10}
               placeholder={"Write your article content here...\n\nUse double line breaks to separate paragraphs.\nUse **Heading** for section headings."}
-              className={`w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none ${
+              className={`w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${
                 isDark ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
               }`}
             />
@@ -259,7 +259,7 @@ function BlogFormModal({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 transition flex items-center gap-2"
+            className="px-5 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 transition flex items-center gap-2"
           >
             {saving && <span className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
             {initial.title ? "Save Changes" : "Publish Article"}
@@ -501,7 +501,7 @@ export default function BlogPage() {
         </div>
         <button
           onClick={() => { setEditTarget(null); setShowModal(true); }}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-md"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-md"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -546,7 +546,7 @@ export default function BlogPage() {
               onClick={() => setFilterCat(cat)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold transition ${
                 filterCat === cat
-                  ? "bg-red-600 text-white"
+                  ? "bg-blue-600 text-white"
                   : isDark
                     ? "bg-gray-800 border border-gray-600 text-gray-400 hover:bg-gray-700"
                     : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -561,7 +561,7 @@ export default function BlogPage() {
       {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <div className="h-8 w-8 rounded-full border-4 border-red-600 border-t-transparent animate-spin" />
+          <div className="h-8 w-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
         </div>
       ) : error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
@@ -578,7 +578,7 @@ export default function BlogPage() {
           {blogs.length === 0 && (
             <button
               onClick={() => { setEditTarget(null); setShowModal(true); }}
-              className="mt-4 px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition"
+              className="mt-4 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
             >
               Create First Article
             </button>

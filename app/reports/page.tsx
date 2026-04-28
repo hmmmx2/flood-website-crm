@@ -46,6 +46,7 @@ export default function ReportsPage() {
 
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -59,8 +60,9 @@ export default function ReportsPage() {
       });
       if (!res.ok) throw new Error("Failed");
       setReports(await res.json());
+      setFetchError(null);
     } catch {
-      setReports([]);
+      setFetchError("Failed to load reports. Showing previously loaded data.");
       toast.error("Failed to load reports. Please refresh and try again.");
     } finally {
       setLoading(false);
@@ -121,6 +123,12 @@ export default function ReportsPage() {
             </div>
           </div>
         </div>
+
+        {fetchError && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+            {fetchError}
+          </div>
+        )}
 
         {/* Filter */}
         <div className="flex items-center gap-3">

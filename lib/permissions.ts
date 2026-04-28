@@ -19,7 +19,8 @@ export type RoleName =
   | "Admin" 
   | "Operations Manager" 
   | "Field Technician" 
-  | "Viewer";
+  | "Viewer"
+  | "Customer";
 
 // Define what each role can do
 export const rolePermissions: Record<RoleName, Permission[]> = {
@@ -45,6 +46,13 @@ export const rolePermissions: Record<RoleName, Permission[]> = {
   Viewer: [
     "dashboard.view",
     "analytics.view",
+    "blog.view",
+  ],
+  Customer: [
+    "dashboard.view",
+    "sensors.view",
+    "map.view",
+    "alerts.view",
     "blog.view",
   ],
 };
@@ -135,6 +143,11 @@ export const pagePermissions: Record<string, Permission> = {
   "/admin": "dashboard.view", // Account settings - everyone can access their own
   "/settings": "settings.manage",
   "/blog": "blog.view",
+  "/community": "blog.view",
+  "/reports": "dashboard.view",
+  "/broadcasts": "alerts.manage",
+  "/portal": "dashboard.view",
+  "/portal/community": "blog.view",
 };
 
 // Check if user can access a specific page

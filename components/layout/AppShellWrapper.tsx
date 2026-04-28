@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -13,7 +13,7 @@ const AppShell = dynamic(() => import("./AppShell"), {
   loading: () => (
     <div className="flex min-h-screen items-center justify-center bg-very-light-grey">
       <div className="flex flex-col items-center gap-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-light-grey border-t-primary-red" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-light-grey border-t-primary-blue" />
         <p className="text-sm font-medium text-dark-charcoal/70">Loading...</p>
       </div>
     </div>
@@ -27,6 +27,7 @@ type AppShellWrapperProps = {
 // Public routes that don't require authentication
 const publicRoutes = [
   "/login",
+  "/auth/callback",
 ];
 
 // Access Denied component
@@ -35,13 +36,13 @@ function AccessDenied() {
   
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center p-6">
-      <div className="rounded-3xl border border-primary-red/30 bg-light-red/20 p-8 text-center dark:border-primary-red/20 dark:bg-primary-red/10">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-red/20">
+      <div className="rounded-3xl border border-primary-blue/30 bg-light-blue/20 p-8 text-center dark:border-primary-blue/20 dark:bg-primary-blue/10">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-blue/20">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-8 w-8 text-primary-red"
+            className="h-8 w-8 text-primary-blue"
           >
             <path
               fillRule="evenodd"
@@ -62,7 +63,7 @@ function AccessDenied() {
         <button
           type="button"
           onClick={() => router.push("/dashboard")}
-          className="mt-6 rounded-xl bg-primary-red px-6 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90"
+          className="mt-6 rounded-xl bg-primary-blue px-6 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90"
         >
           Go to Dashboard
         </button>
@@ -103,7 +104,7 @@ export default function AppShellWrapper({ children }: AppShellWrapperProps) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-very-light-grey dark:bg-dark-bg">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-light-grey border-t-primary-red dark:border-dark-border" />
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-light-grey border-t-primary-blue dark:border-dark-border" />
           <p className="text-sm font-medium text-dark-charcoal/70 dark:text-dark-text-secondary">Loading...</p>
         </div>
       </div>

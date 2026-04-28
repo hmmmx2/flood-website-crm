@@ -2,7 +2,7 @@ import { request } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
-const JAVA_API = 'http://localhost:3001';
+const JAVA_API = 'http://localhost:4002';
 
 /**
  * Global setup — runs once before all tests.

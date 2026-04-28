@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { javaFetch } from "@/lib/javaApi";
 import { withCache, CACHE_TTL } from "@/lib/redis";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 function getToken(req: NextRequest): string | undefined {

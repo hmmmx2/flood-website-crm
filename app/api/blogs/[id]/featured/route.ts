@@ -3,10 +3,11 @@ import { javaFetch } from "@/lib/javaApi";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
   try {
     const token = req.headers.get("authorization")?.replace("Bearer ", "");
-    const data = await javaFetch<unknown>(`/blogs/${params.id}/featured`, { method: "PATCH", token });
+    const data = await javaFetch<unknown>(`/blogs/${id}/featured`, { method: "PATCH", token });
     return NextResponse.json(data);
   } catch (error) {
     const status = (error as { status?: number }).status ?? 500;

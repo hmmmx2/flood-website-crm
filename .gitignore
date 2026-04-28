@@ -33,8 +33,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files — committed intentionally for portability between PCs
-# .env*
+# Environment files — never commit secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production
+.env.production.local
 
 # vercel
 .vercel

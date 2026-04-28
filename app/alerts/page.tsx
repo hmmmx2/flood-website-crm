@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -181,10 +181,10 @@ function CalendarDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
           selectedDate
-            ? "border-primary-red bg-primary-red/10 text-primary-red"
+            ? "border-primary-blue bg-primary-blue/10 text-primary-blue"
             : isDark
-              ? "border-dark-border text-dark-text hover:border-primary-red"
-              : "border-light-grey text-dark-charcoal hover:border-primary-red"
+              ? "border-dark-border text-dark-text hover:border-primary-blue"
+              : "border-light-grey text-dark-charcoal hover:border-primary-blue"
         }`}
       >
         <CalendarIcon className="h-4 w-4" />
@@ -256,11 +256,11 @@ function CalendarDropdown({
                       onClick={() => handleSelectDate(day)}
                       className={`flex h-full w-full items-center justify-center rounded-lg text-sm font-medium transition ${
                         isSelectedDay(day)
-                          ? "bg-primary-red text-pure-white"
+                          ? "bg-primary-blue text-pure-white"
                           : isToday(day)
                             ? isDark
-                              ? "bg-primary-red/20 text-primary-red"
-                              : "bg-light-red text-primary-red"
+                              ? "bg-primary-blue/20 text-primary-blue"
+                              : "bg-light-blue text-primary-blue"
                             : isDark
                               ? "text-dark-text hover:bg-dark-border"
                               : "text-dark-charcoal hover:bg-very-light-grey"
@@ -293,7 +293,7 @@ function CalendarDropdown({
                     onClear();
                     setIsOpen(false);
                   }}
-                  className="flex-1 rounded-xl bg-primary-red/10 px-3 py-2 text-sm font-semibold text-primary-red hover:bg-primary-red/20"
+                  className="flex-1 rounded-xl bg-primary-blue/10 px-3 py-2 text-sm font-semibold text-primary-blue hover:bg-primary-blue/20"
                 >
                   Clear
                 </button>
@@ -323,9 +323,9 @@ const sortOrderOptions = [
 
 const alertTone = {
   DANGER: {
-    border: "border-primary-red",
-    background: "bg-light-red/60 dark:bg-primary-red/20",
-    label: "text-primary-red",
+    border: "border-primary-blue",
+    background: "bg-light-blue/60 dark:bg-primary-blue/20",
+    label: "text-primary-blue",
     icon: "",
   },
   WARNING: {
@@ -586,7 +586,7 @@ export default function AlertsPage() {
     return (
       <section className="flex h-64 items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-light-grey border-t-primary-red" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-light-grey border-t-primary-blue" />
           <p className={`text-sm font-medium ${isDark ? "text-dark-text-secondary" : "text-dark-charcoal/70"}`}>
             Loading alerts...
           </p>
@@ -599,7 +599,7 @@ export default function AlertsPage() {
     return (
       <section className="flex h-64 items-center justify-center">
         <div className={`rounded-3xl border p-8 text-center ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`}>
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-red/10">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-blue/10">
             <AlertTriangleIcon className="h-10 w-10 text-status-warning-2" />
           </div>
           <h3 className={`text-lg font-semibold ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
@@ -610,7 +610,7 @@ export default function AlertsPage() {
           </p>
           <button
             onClick={fetchNodes}
-            className="mt-4 rounded-xl bg-primary-red px-4 py-2 text-sm font-semibold text-pure-white hover:bg-primary-red/90"
+            className="mt-4 rounded-xl bg-primary-blue px-4 py-2 text-sm font-semibold text-pure-white hover:bg-primary-blue/90"
           >
             Retry Connection
           </button>
@@ -671,14 +671,14 @@ export default function AlertsPage() {
             onClick={() => setIsFilterModalOpen(true)}
             className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
               isDark
-                ? "border-dark-border text-dark-text hover:border-primary-red hover:text-primary-red"
-                : "border-light-grey text-dark-charcoal hover:border-primary-red hover:text-primary-red"
+                ? "border-dark-border text-dark-text hover:border-primary-blue hover:text-primary-blue"
+                : "border-light-grey text-dark-charcoal hover:border-primary-blue hover:text-primary-blue"
             }`}
           >
             <FilterIcon className="h-4 w-4" />
             Filter
             {(activeTypeFilter !== "all" || sortOrder !== "newest" || selectedDate) && (
-              <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-red text-xs text-pure-white">
+              <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-blue text-xs text-pure-white">
                 !
               </span>
             )}
@@ -708,8 +708,8 @@ export default function AlertsPage() {
           <p className={`text-2xl font-bold ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>{stats.total}</p>
           <p className={`text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Total Nodes</p>
         </div>
-        <div className={`rounded-2xl border p-4 border-primary-red/30 ${isDark ? "bg-primary-red/10" : "bg-light-red/30"}`}>
-          <p className="text-2xl font-bold text-primary-red">{stats.danger}</p>
+        <div className={`rounded-2xl border p-4 border-primary-blue/30 ${isDark ? "bg-primary-blue/10" : "bg-light-blue/30"}`}>
+          <p className="text-2xl font-bold text-primary-blue">{stats.danger}</p>
           <p className={`text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Danger</p>
         </div>
         <div className={`rounded-2xl border p-4 border-status-warning-2/30 ${isDark ? "bg-status-warning-2/10" : "bg-status-warning-2/15"}`}>
@@ -741,10 +741,10 @@ export default function AlertsPage() {
               onClick={() => setActiveTypeFilter(option.id)}
               className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
                 isActive
-                  ? "bg-primary-red text-pure-white"
+                  ? "bg-primary-blue text-pure-white"
                   : isDark
-                    ? "border border-dark-border text-dark-text-secondary hover:border-primary-red/60"
-                    : "border border-light-grey text-dark-charcoal hover:border-primary-red/60"
+                    ? "border border-dark-border text-dark-text-secondary hover:border-primary-blue/60"
+                    : "border border-light-grey text-dark-charcoal hover:border-primary-blue/60"
               }`}
             >
               {option.label}
@@ -757,9 +757,9 @@ export default function AlertsPage() {
       <div className={`flex flex-wrap items-center gap-2 text-sm transition-colors ${isDark ? "text-dark-text-secondary" : "text-dark-charcoal/60"}`}>
         <span>Showing:</span>
         {selectedDate && (
-          <span className="flex items-center gap-1 rounded-full bg-primary-red/20 px-3 py-1 text-xs font-semibold text-primary-red">
+          <span className="flex items-center gap-1 rounded-full bg-primary-blue/20 px-3 py-1 text-xs font-semibold text-primary-blue">
             {new Date(selectedDate).toLocaleDateString("en-MY", { dateStyle: "medium" })}
-            <button onClick={clearDateFilter} className="ml-1 hover:text-primary-red/70">×</button>
+            <button onClick={clearDateFilter} className="ml-1 hover:text-primary-blue/70">×</button>
           </span>
         )}
         <span className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${isDark ? "bg-dark-bg text-dark-text" : "bg-very-light-grey text-dark-charcoal"}`}>
@@ -775,12 +775,12 @@ export default function AlertsPage() {
 
       {/* Critical Alerts (Danger & Warning) */}
       {filteredAndSortedAlerts.critical.length > 0 && (
-        <section className={`space-y-4 rounded-3xl border-2 border-primary-red/50 p-5 shadow-sm ${isDark ? "bg-primary-red/5" : "bg-light-red/20"}`}>
+        <section className={`space-y-4 rounded-3xl border-2 border-primary-blue/50 p-5 shadow-sm ${isDark ? "bg-primary-blue/5" : "bg-light-blue/20"}`}>
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-primary-red">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-primary-blue">
               Critical Alerts
             </h2>
-            <span className="rounded-full bg-primary-red px-3 py-1 text-xs font-bold text-pure-white">
+            <span className="rounded-full bg-primary-blue px-3 py-1 text-xs font-bold text-pure-white">
               {filteredAndSortedAlerts.critical.length} ACTIVE
             </span>
           </div>
@@ -1008,10 +1008,10 @@ export default function AlertsPage() {
                       onClick={() => setSortOrder(option.id)}
                       className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
                         sortOrder === option.id
-                          ? "bg-primary-red text-pure-white"
+                          ? "bg-primary-blue text-pure-white"
                           : isDark
-                            ? "border border-dark-border text-dark-text-secondary hover:border-primary-red/60"
-                            : "border border-light-grey text-dark-charcoal hover:border-primary-red/60"
+                            ? "border border-dark-border text-dark-text-secondary hover:border-primary-blue/60"
+                            : "border border-light-grey text-dark-charcoal hover:border-primary-blue/60"
                       }`}
                     >
                       {option.label}
@@ -1036,10 +1036,10 @@ export default function AlertsPage() {
                       onClick={() => setActiveTypeFilter(option.id)}
                       className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
                         activeTypeFilter === option.id
-                          ? "bg-primary-red text-pure-white"
+                          ? "bg-primary-blue text-pure-white"
                           : isDark
-                            ? "border border-dark-border text-dark-text-secondary hover:border-primary-red/60"
-                            : "border border-light-grey text-dark-charcoal hover:border-primary-red/60"
+                            ? "border border-dark-border text-dark-text-secondary hover:border-primary-blue/60"
+                            : "border border-light-grey text-dark-charcoal hover:border-primary-blue/60"
                       }`}
                     >
                       {option.label}
@@ -1063,7 +1063,7 @@ export default function AlertsPage() {
               <button
                 type="button"
                 onClick={handleApplyFilters}
-                className="rounded-xl bg-primary-red px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90"
+                className="rounded-xl bg-primary-blue px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90"
               >
                 Apply Filters
               </button>

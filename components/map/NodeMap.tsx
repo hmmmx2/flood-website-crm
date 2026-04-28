@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import {
   GoogleMap,
@@ -15,7 +15,14 @@ type NodeMapProps = {
   nodes: NodeData[];
   height?: number;
   zoom?: number;
-  focusOnLatest?: boolean; // Auto-focus on most recently updated node
+  /** When set, the map pans to and highlights this node._id */
+  focusNodeId?: string | null;
+  /** Set of node._id values to render with the "highlighted" ring (used for recently-updated chips) */
+  highlightedIds?: Set<string>;
+  /** Currently starred node IDs — drives the ★ button inside the InfoWindow */
+  favouriteIds?: Set<string>;
+  /** Called when the user clicks the star button in the InfoWindow */
+  onToggleFavourite?: (nodeId: string) => void;
 };
 
 const mapStyles: google.maps.MapTypeStyle[] = [
@@ -43,9 +50,17 @@ export default function NodeMap({
   nodes,
   height = 420,
   zoom = 12,
-  focusOnLatest = true,
+  focusNodeId = null,
+  highlightedIds,
+  favouriteIds,
+  onToggleFavourite,
 }: NodeMapProps) {
-  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  // hoveredNodeId  — transient, cleared when mouse leaves
+  // clickedNodeId  — persistent, survives mouse-leave so user can interact with InfoWindow
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [clickedNodeId, setClickedNodeId] = useState<string | null>(null);
+  // Derived: clicked takes priority over hovered
+  const activeNodeId = clickedNodeId ?? hoveredNodeId;
   const [mapError, setMapError] = useState(false);
   const [lastFocusedNodeId, setLastFocusedNodeId] = useState<string | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -72,50 +87,34 @@ export default function NodeMap({
     });
   }, [nodes]);
 
-  // Pan to the most recently updated node when it changes
+  // Track the latest node ID so the gold ring re-renders on data refresh,
+  // but do NOT auto-pan — let the user navigate freely.
   useEffect(() => {
-    if (
-      focusOnLatest &&
-      latestUpdatedNode &&
-      mapRef.current &&
-      latestUpdatedNode._id !== lastFocusedNodeId
-    ) {
-      const newPosition = {
-        lat: latestUpdatedNode.latitude,
-        lng: latestUpdatedNode.longitude,
-      };
-      
-      // Smoothly pan to the new position
-      mapRef.current.panTo(newPosition);
-      
-      // Optionally highlight the node
-      setActiveNodeId(latestUpdatedNode._id);
+    if (latestUpdatedNode && latestUpdatedNode._id !== lastFocusedNodeId) {
       setLastFocusedNodeId(latestUpdatedNode._id);
-      
-      // Auto-close the info window after 5 seconds
-      setTimeout(() => {
-        setActiveNodeId(null);
-      }, 5000);
     }
-  }, [latestUpdatedNode, focusOnLatest, lastFocusedNodeId]);
+  }, [latestUpdatedNode, lastFocusedNodeId]);
 
-  // Calculate initial map center
+  // Pan to externally requested node (favourite click) and lock InfoWindow open
+  useEffect(() => {
+    if (!focusNodeId || !mapRef.current) return;
+    const target = nodes.find(n => n._id === focusNodeId);
+    if (!target) return;
+    mapRef.current.panTo({ lat: target.latitude, lng: target.longitude });
+    mapRef.current.setZoom(15);
+    setClickedNodeId(focusNodeId);
+  }, [focusNodeId, nodes]);
+
+  // Initial map center — average of all nodes (computed once; does not re-center on refresh)
   const mapCenter = useMemo(() => {
-    // If we have a latest node and focus is enabled, center on it
-    if (focusOnLatest && latestUpdatedNode) {
-      return { lat: latestUpdatedNode.latitude, lng: latestUpdatedNode.longitude };
-    }
-    
-    if (!nodes.length) {
-      return { lat: 1.553, lng: 110.344 }; // Default Sarawak location
-    }
-    // Calculate center from all nodes
+    if (!nodes.length) return { lat: 1.553, lng: 110.344 }; // Default: Sarawak
     const avgLat = nodes.reduce((sum, n) => sum + n.latitude, 0) / nodes.length;
     const avgLng = nodes.reduce((sum, n) => sum + n.longitude, 0) / nodes.length;
     return { lat: avgLat, lng: avgLng };
-  }, [nodes, focusOnLatest, latestUpdatedNode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally computed only on mount — we do NOT want re-centering on data refresh
 
-  const activeNode = nodes.find((node) => node._id === activeNodeId);
+  const activeNode = nodes.find(n => n._id === activeNodeId);
 
   // Callback to store map reference
   const onMapLoad = useCallback((map: google.maps.Map) => {
@@ -191,7 +190,7 @@ export default function NodeMap({
             </div>
           ))}
           {nodes.length > 4 && (
-            <div className="flex items-center rounded-lg bg-light-red/50 dark:bg-primary-red/20 px-2 py-1 text-xs font-medium text-primary-red">
+            <div className="flex items-center rounded-lg bg-light-blue/50 dark:bg-primary-blue/20 px-2 py-1 text-xs font-medium text-primary-blue">
               +{nodes.length - 4} more
             </div>
           )}
@@ -212,7 +211,7 @@ export default function NodeMap({
         style={{ height }}
       >
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-light-grey dark:border-dark-border border-t-primary-red" />
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-light-grey dark:border-dark-border border-t-primary-blue" />
           <p className="text-sm font-semibold text-dark-charcoal/70 dark:text-dark-text-secondary">
             Loading Flood Map...
           </p>
@@ -222,21 +221,31 @@ export default function NodeMap({
   }
 
   const getIcon = (node: NodeData): google.maps.Symbol | undefined => {
-    if (typeof google === "undefined") {
-      return undefined;
-    }
-
+    if (typeof google === "undefined") return undefined;
     const color = getMarkerColor(node);
     const isLatest = latestUpdatedNode?._id === node._id;
-
+    const isHighlighted = highlightedIds?.has(node._id) || isLatest;
     return {
       path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
       fillColor: color,
       fillOpacity: 1,
-      strokeColor: isLatest ? "#FFD700" : "#ffffff", // Gold border for latest updated
-      strokeWeight: isLatest ? 3 : 2,
-      scale: isLatest ? 1.8 : 1.5, // Slightly larger for latest
+      strokeColor: isHighlighted ? "#FFB800" : "#ffffff",
+      strokeWeight: isHighlighted ? 3.5 : 1.5,
+      scale: isHighlighted ? 1.9 : 1.5,
       anchor: new google.maps.Point(12, 24),
+    };
+  };
+
+  const getRingIcon = (): google.maps.Symbol | undefined => {
+    if (typeof google === "undefined") return undefined;
+    return {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: "transparent",
+      fillOpacity: 0,
+      strokeColor: "#FFB800",
+      strokeWeight: 2,
+      strokeOpacity: 0.65,
+      scale: 20,
     };
   };
 
@@ -253,74 +262,146 @@ export default function NodeMap({
       }}
       onLoad={onMapLoad}
     >
-      {nodes.map((node) => (
-        <Marker
-          key={node._id}
-          position={{ lat: node.latitude, lng: node.longitude }}
-          icon={getIcon(node)}
-          onMouseOver={() => setActiveNodeId(node._id)}
-          onMouseOut={() => setActiveNodeId(null)}
-          onClick={() => setActiveNodeId(node._id)}
-          animation={
-            latestUpdatedNode?._id === node._id
-              ? google.maps.Animation.BOUNCE
-              : undefined
-          }
-        />
-      ))}
+      {nodes.map((node) => {
+        const isHighlighted = highlightedIds?.has(node._id) || latestUpdatedNode?._id === node._id;
+        return (
+          <React.Fragment key={node._id}>
+            {/* Outer amber ring for highlighted / latest node */}
+            {isHighlighted && (
+              <Marker
+                position={{ lat: node.latitude, lng: node.longitude }}
+                icon={getRingIcon()}
+                clickable={false}
+                zIndex={0}
+              />
+            )}
+            <Marker
+              position={{ lat: node.latitude, lng: node.longitude }}
+              icon={getIcon(node)}
+              onMouseOver={() => setHoveredNodeId(node._id)}
+              onMouseOut={() => setHoveredNodeId(null)}
+              onClick={() => setClickedNodeId(prev => prev === node._id ? null : node._id)}
+              zIndex={isHighlighted ? 10 : 1}
+            />
+          </React.Fragment>
+        );
+      })}
       {activeNode && (
         <InfoWindow
           position={{ lat: activeNode.latitude, lng: activeNode.longitude }}
-          onCloseClick={() => setActiveNodeId(null)}
-          options={{ 
-            pixelOffset: new google.maps.Size(0, -30),
-            disableAutoPan: true 
+          onCloseClick={() => { setClickedNodeId(null); setHoveredNodeId(null); }}
+          options={{
+            pixelOffset: new google.maps.Size(0, -34),
+            disableAutoPan: false,
           }}
         >
-          <div className="min-w-[200px] p-1 text-sm">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-dark-charcoal">
-                Node ID: {activeNode.node_id}
+          <div style={{ minWidth: 220, fontFamily: "inherit", padding: "2px 2px 4px" }}>
+            {/* ── Header ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <p style={{ fontWeight: 700, fontSize: 13, color: "#1a1a1a", margin: 0, flex: 1 }}>
+                {activeNode.node_id}
               </p>
               {latestUpdatedNode?._id === activeNode._id && (
-                <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                <span style={{
+                  background: "#fef3c7", color: "#92400e",
+                  fontSize: 9, fontWeight: 700, padding: "2px 6px",
+                  borderRadius: 999, letterSpacing: "0.05em",
+                }}>
                   LATEST
                 </span>
               )}
             </div>
-            <div className="mt-2 space-y-1">
-              <p className="flex items-center gap-2 text-xs text-dark-charcoal/70">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: getMarkerColor(activeNode) }}
-                />
-                Water Status: <span className="font-semibold">{getStatusLabel(activeNode.current_level)}</span>
-              </p>
-              <p className="text-xs text-dark-charcoal/70">
-                Water Level:{" "}
-                <span className="font-semibold text-primary-red">
-                  {activeNode.current_level} ft
+
+            {/* ── Location ── */}
+            {(activeNode.location || activeNode.area) && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 4,
+                marginBottom: 8, padding: "4px 8px",
+                background: "#f3f4f6", borderRadius: 8,
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#6b7280" style={{ width: 12, height: 12, flexShrink: 0 }}>
+                  <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-2.079 3.953-5.442 3.953-9.827a8.25 8.25 0 00-16.5 0c0 4.385 2.009 7.748 3.953 9.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+                <span style={{ fontSize: 11, color: "#6b7280" }}>
+                  {[activeNode.location, activeNode.area].filter(Boolean).join(" · ")}
                 </span>
-              </p>
-              <p className="text-xs text-dark-charcoal/70">
+              </div>
+            )}
+
+            {/* ── Stats ── */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151" }}>
+                <span style={{
+                  display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+                  background: getMarkerColor(activeNode), flexShrink: 0,
+                }} />
+                <span>Water Status: <strong>{getStatusLabel(activeNode.current_level)}</strong></span>
+              </div>
+              <div style={{ fontSize: 12, color: "#374151", paddingLeft: 14 }}>
+                Water Level: <strong style={{ color: "#d7263d" }}>{activeNode.current_level} ft</strong>
+              </div>
+              <div style={{ fontSize: 12, color: "#374151", paddingLeft: 14 }}>
                 Node Status:{" "}
-                <span className={`font-semibold ${activeNode.is_dead ? "text-status-danger" : "text-status-green"}`}>
+                <strong style={{ color: activeNode.is_dead ? "#d7263d" : "#16a34a" }}>
                   {activeNode.is_dead ? "Offline" : "Online"}
-                </span>
-              </p>
-              <p className="text-xs text-dark-charcoal/70">
+                </strong>
+              </div>
+              <div style={{ fontSize: 12, color: "#374151", paddingLeft: 14 }}>
                 Last Updated:{" "}
-                <span className="font-medium">
+                <span style={{ fontWeight: 500 }}>
                   {new Date(activeNode.last_updated).toLocaleString("en-MY", {
-                    dateStyle: "short",
-                    timeStyle: "short",
+                    dateStyle: "short", timeStyle: "short",
                   })}
                 </span>
-              </p>
-              <p className="text-xs text-dark-charcoal/50 pt-1 border-t border-light-grey">
-                {activeNode.latitude.toFixed(6)}°N, {activeNode.longitude.toFixed(6)}°E
-              </p>
+              </div>
             </div>
+
+            {/* ── Coordinates ── */}
+            <p style={{
+              fontSize: 10, color: "#9ca3af", margin: "0 0 10px",
+              paddingTop: 6, borderTop: "1px solid #e5e7eb",
+            }}>
+              {activeNode.latitude.toFixed(6)}°N, {activeNode.longitude.toFixed(6)}°E
+            </p>
+
+            {/* ── Favourite toggle button ── */}
+            {onToggleFavourite && (() => {
+              const isFav = favouriteIds?.has(activeNode._id) ?? false;
+              return (
+                <button
+                  type="button"
+                  onClick={() => onToggleFavourite(activeNode._id)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    gap: 6, width: "100%",
+                    padding: "7px 12px",
+                    borderRadius: 10,
+                    border: isFav ? "1.5px solid #f59e0b" : "1.5px solid #d1d5db",
+                    background: isFav ? "#fffbeb" : "#f9fafb",
+                    color: isFav ? "#b45309" : "#374151",
+                    fontSize: 12, fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = isFav ? "#fef3c7" : "#f3f4f6";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = isFav ? "#fffbeb" : "#f9fafb";
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                    fill={isFav ? "#f59e0b" : "none"}
+                    stroke={isFav ? "#f59e0b" : "#6b7280"}
+                    strokeWidth="1.8"
+                    style={{ width: 14, height: 14, flexShrink: 0 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                  </svg>
+                  {isFav ? "Remove from Favourites" : "Add to Favourites"}
+                </button>
+              );
+            })()}
           </div>
         </InfoWindow>
       )}

@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   Area,
@@ -64,6 +64,24 @@ const weekLabels = Array.from({ length: 7 }, (_, i) => {
   return d.toLocaleDateString("en-MY", { weekday: "short", day: "numeric" });
 });
 
+// ── Flood Risk Analysis helpers (inspired by FYP-RainfallView XGBoost model) ──
+type RiskScale = "hourly" | "daily" | "weekly" | "monthly";
+const RISK_COLORS: Record<number, string> = { 0: "#56E40A", 1: "#FFD54F", 2: "#FF9F1C", 3: "#ED1C24" };
+const RISK_LABELS = ["Normal", "Alert", "Warning", "Critical"];
+const RISK_FT     = ["0ft", "1ft", "2ft", "3ft"];
+
+function eventCountToLevel(count: number): number {
+  if (count === 0) return 0;
+  if (count < 5)  return 1;
+  if (count < 15) return 2;
+  return 3;
+}
+function riskColor(level: number | null): string {
+  if (level === null) return "#e5e7eb";
+  return RISK_COLORS[level] ?? "#e5e7eb";
+}
+function riskTickLabel(v: number): string { return RISK_LABELS[v] ?? ""; }
+
 // Last 5 month labels
 const monthLabels = Array.from({ length: 5 }, (_, i) => {
   const d = new Date();
@@ -95,8 +113,11 @@ export default function AnalyticsPage() {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
     })
-      .then((r) => r.json())
-      .then((d: AnalyticsData) => setData(d))
+      .then((r) => {
+        if (!r.ok) { toast.error("Failed to load analytics data"); setIsLoading(false); return null; }
+        return r.json();
+      })
+      .then((d: AnalyticsData | null) => { if (d) setData(d); })
       .catch((err) => {
         console.error("Analytics fetch failed:", err);
         toast.error("Failed to load analytics. Please refresh.");
@@ -110,8 +131,12 @@ export default function AnalyticsPage() {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
       .then((result) => {
+        if (!result) return;
         const nodes: Array<{ node_id: string; latitude: number; longitude: number }> =
           Array.isArray(result) ? result : (result.data ?? []);
         const map: Record<string, { latitude: number; longitude: number }> = {};
@@ -175,6 +200,40 @@ export default function AnalyticsPage() {
     color: PIE_COLORS[i % PIE_COLORS.length],
   })).filter(d => d.value > 0);
 
+  // ── Flood Risk Analysis state ─────────────────────────────────────────────
+  const [riskScale, setRiskScale] = useState<RiskScale>("daily");
+  const [minLevel, setMinLevel] = useState(0);
+
+  const dailyRiskData = useMemo(() =>
+    (data?.chartData ?? Array(7).fill(0)).map((count, i) => ({
+      name: weekLabels[i] ?? `Day ${i + 1}`,
+      level: eventCountToLevel(count),
+      count,
+    })), [data]);
+
+  const weeklyRiskData = useMemo(() => {
+    const y = data?.yearlyChartData ?? Array(5).fill(0);
+    return [
+      { name: "Q1 Jan–Mar", level: eventCountToLevel(y[0] ?? 0) },
+      { name: "Q2 Apr–Jun", level: eventCountToLevel(y[1] ?? 0) },
+      { name: "Q3 Jul–Sep", level: eventCountToLevel(y[2] ?? 0) },
+      { name: "Q4 Oct–Dec", level: eventCountToLevel(y[3] ?? 0) },
+    ];
+  }, [data]);
+
+  const monthlyRiskData = useMemo(() =>
+    (data?.yearlyChartData ?? Array(5).fill(0)).map((count, i) => ({
+      name: monthLabels[i] ?? `M${i + 1}`,
+      level: eventCountToLevel(count),
+      count,
+    })), [data]);
+
+  const rawRiskData = { hourly: dailyRiskData, daily: dailyRiskData, weekly: weeklyRiskData, monthly: monthlyRiskData }[riskScale];
+  const filteredRiskData = rawRiskData.map(d => ({
+    ...d,
+    level: d.level >= minLevel ? d.level : null,
+  }));
+
   if (isLoading) {
     return (
       <section className="space-y-6">
@@ -222,46 +281,82 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {/* ─── Row 1: Weekly trend + Water Level by Node ───────────────────── */}
+      {/* ─── Row 1: Flood Risk Analysis + Water Level by Node ──────────────── */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <article
-          className={`rounded-3xl border p-5 shadow-sm transition-colors ${
-            isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"
-          }`}
-        >
-          <div className="flex items-center justify-between">
+        <article className={`rounded-3xl border p-5 shadow-sm transition-colors ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`}>
+          {/* Header */}
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <h2 className={`text-lg font-semibold transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
-                Event Trend (7 Days)
+                Flood Risk Analysis
               </h2>
               <p className={`text-xs uppercase tracking-wide transition-colors ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>
-                Sensor events per day
+                Risk level distribution — XGBoost-inspired model
               </p>
             </div>
-            <span className="rounded-full bg-light-red/70 px-3 py-1 text-xs font-semibold text-primary-red dark:bg-primary-red/20">
-              Weekly
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-status-green animate-pulse" />
+              <span className="text-xs font-semibold text-status-green">Live</span>
+            </div>
           </div>
-          <div className="mt-4 h-72">
+
+          {/* Controls */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div className={`flex overflow-hidden rounded-xl border text-xs font-semibold ${isDark ? "border-dark-border" : "border-light-grey"}`}>
+              {(["Daily", "Weekly", "Monthly"] as const).map((s) => {
+                const key = s.toLowerCase() as RiskScale;
+                const active = riskScale === key;
+                return (
+                  <button key={s} type="button" onClick={() => setRiskScale(key)}
+                    className={`px-3 py-1.5 transition-colors ${active ? "bg-primary-blue text-pure-white" : isDark ? "bg-dark-bg text-dark-text hover:bg-dark-border/60" : "bg-pure-white text-dark-charcoal hover:bg-very-light-grey"}`}>
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Min. Level</span>
+              <select value={minLevel} onChange={(e) => setMinLevel(Number(e.target.value))}
+                className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold outline-none transition focus:border-primary-blue ${isDark ? "border-dark-border bg-dark-bg text-dark-text" : "border-light-grey bg-pure-white text-dark-charcoal"}`}>
+                <option value={0}>All levels</option>
+                <option value={1}>Alert+ (≥ 1)</option>
+                <option value={2}>Warning+ (≥ 2)</option>
+                <option value={3}>Critical (= 3)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={lineChartData}>
-                <defs>
-                  <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#ED1C24" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ED1C24" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <BarChart data={filteredRiskData} barCategoryGap="18%">
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                 <XAxis dataKey="name" tick={{ fontSize: 9, fill: chartTextColor }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 3]} ticks={[0, 1, 2, 3]} tickFormatter={riskTickLabel} tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} width={58} />
                 <Tooltip
                   contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                  formatter={(value: unknown) => [value, "Events"]}
+                  formatter={(value: unknown) => {
+                    const v = Number(value);
+                    return [`Level ${v} — ${RISK_LABELS[v] ?? "Unknown"} (${RISK_FT[v] ?? ""})`, "Risk Level"];
+                  }}
                 />
-                <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: 12, fontWeight: 500, color: chartTextColor }} />
-                <Area type="monotone" dataKey="events" name="Events" stroke="#ED1C24" strokeWidth={2} fill="url(#colorEvents)" dot={{ r: 4, fill: "#ED1C24" }} activeDot={{ r: 6 }} />
-              </AreaChart>
+                <Bar dataKey="level" name="Flood Risk Level" radius={[5, 5, 0, 0]} maxBarSize={40}>
+                  {filteredRiskData.map((entry, i) => (
+                    <Cell key={i} fill={riskColor(entry.level)} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
+          </div>
+
+          {/* Legend */}
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+            {[0, 1, 2, 3].map((lvl) => (
+              <div key={lvl} className={`flex items-center gap-1.5 text-[11px] font-medium transition-opacity ${minLevel > lvl ? "opacity-30" : ""} ${isDark ? "text-dark-text-secondary" : "text-dark-charcoal/70"}`}>
+                <span className="h-3 w-3 rounded-sm" style={{ background: RISK_COLORS[lvl] }} />
+                {RISK_LABELS[lvl]} ({RISK_FT[lvl]})
+              </div>
+            ))}
           </div>
         </article>
 
@@ -284,7 +379,7 @@ export default function AnalyticsPage() {
                 <YAxis tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} domain={[0, 4.5]} label={{ value: "Level (m)", angle: -90, position: "insideLeft", fontSize: 11, fill: chartTextColor }} />
                 <Tooltip
                   contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                  formatter={(value: unknown) => [`${value} m`, "Water Level"]}
+                  formatter={(value) => [`${value} m`, "Water Level"]}
                 />
                 <Legend verticalAlign="top" height={36} iconType="square" wrapperStyle={{ fontSize: 12, fontWeight: 500, color: chartTextColor }} />
                 <Bar dataKey="level" name="Water Level" radius={[6, 6, 0, 0]}>
@@ -314,7 +409,7 @@ export default function AnalyticsPage() {
                 Last 5 months
               </p>
             </div>
-            <span className="rounded-full bg-light-red/70 px-3 py-1 text-xs font-semibold text-primary-red dark:bg-primary-red/20">
+            <span className="rounded-full bg-light-blue/70 px-3 py-1 text-xs font-semibold text-primary-blue dark:bg-primary-blue/20">
               Monthly
             </span>
           </div>
@@ -323,8 +418,8 @@ export default function AnalyticsPage() {
               <AreaChart data={yearlyChartData}>
                 <defs>
                   <linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#ED1C24" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ED1C24" stopOpacity={0} />
+                    <stop offset="5%"  stopColor="#1d4ed8" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
@@ -332,10 +427,10 @@ export default function AnalyticsPage() {
                 <YAxis tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                  formatter={(value: unknown) => [value, "Events"]}
+                  formatter={(value) => [`${value}`, "Events"]}
                 />
                 <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: 12, fontWeight: 500, color: chartTextColor }} />
-                <Area type="monotone" dataKey="events" name="Events" stroke="#ED1C24" strokeWidth={2} fill="url(#colorMonthly)" dot={{ r: 4, fill: "#ED1C24" }} activeDot={{ r: 6 }} />
+                <Area type="monotone" dataKey="events" name="Events" stroke="#1d4ed8" strokeWidth={2} fill="url(#colorMonthly)" dot={{ r: 4, fill: "#1d4ed8" }} activeDot={{ r: 6 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -423,7 +518,7 @@ export default function AnalyticsPage() {
                 contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
               />
               <Legend verticalAlign="top" height={36} iconType="square" wrapperStyle={{ fontSize: 12, fontWeight: 500, color: chartTextColor }} />
-              <Bar dataKey="total" name="Total Incidents" fill="#ED1C24" radius={[0, 6, 6, 0]} />
+              <Bar dataKey="total" name="Total Incidents" fill="#1d4ed8" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

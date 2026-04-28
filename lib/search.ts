@@ -6,7 +6,7 @@ export type SearchResult = {
   href: string;
   category: string;
   keywords: string[];
-  icon: "dashboard" | "sensors" | "map" | "analytics" | "alerts" | "roles" | "admin" | "settings";
+  icon: "dashboard" | "sensors" | "map" | "analytics" | "alerts" | "roles" | "admin" | "settings" | "blog" | "community" | "reports" | "broadcasts";
 };
 
 // Define searchable pages with their content keywords
@@ -121,6 +121,54 @@ export const searchIndex: SearchResult[] = [
       "integrations", "security", "appearance", "theme", "dark mode", "light mode",
       "map settings", "backup", "restore", "export", "import", "api", "webhook",
       "timezone", "language", "retention", "cleanup", "system", "configure",
+    ],
+  },
+  {
+    id: "blog",
+    title: "Community Blog",
+    description: "Read and share flood-related news and updates",
+    href: "/blog",
+    category: "Community",
+    icon: "blog",
+    keywords: [
+      "blog", "posts", "articles", "news", "community", "flood", "updates",
+      "share", "publish", "read", "announcements",
+    ],
+  },
+  {
+    id: "community",
+    title: "Community Management",
+    description: "Moderate user posts and manage community groups",
+    href: "/community",
+    category: "Management",
+    icon: "community",
+    keywords: [
+      "community", "posts", "groups", "moderate", "manage", "delete", "remove",
+      "users", "flood community", "groups management", "blog posts",
+    ],
+  },
+  {
+    id: "reports",
+    title: "Incident Reports",
+    description: "Review and action community flood incident submissions",
+    href: "/reports",
+    category: "Insights",
+    icon: "reports",
+    keywords: [
+      "reports", "incidents", "submissions", "flood reports", "pending", "resolved",
+      "reviewed", "severity", "location", "community reports", "review", "action",
+    ],
+  },
+  {
+    id: "broadcasts",
+    title: "Broadcasts",
+    description: "Send emergency alerts and broadcasts to the community",
+    href: "/broadcasts",
+    category: "Management",
+    icon: "broadcasts",
+    keywords: [
+      "broadcasts", "broadcast", "alerts", "emergency", "send", "notify",
+      "message", "announcement", "push", "community alert",
     ],
   },
 ];

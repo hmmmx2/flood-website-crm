@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "react-hot-toast";
@@ -128,7 +128,7 @@ type CRMSettings = {
 
 const defaultSettings: CRMSettings = {
   systemName: "Flood Management CRM",
-  organizationName: "Malaysian Red Crescent",
+  organizationName: "Pop Up Advertising And Information Enterprise",
   timezone: "Asia/Kuala_Lumpur",
   language: "en-MY",
   dateFormat: "DD/MM/YYYY",
@@ -146,7 +146,8 @@ const defaultSettings: CRMSettings = {
   autoArchive: true,
   exportFormat: "csv",
   googleMapsApiKey: "••••••••••••••••",
-  apiUrl: process.env.NEXT_PUBLIC_JAVA_API_URL ?? "https://api.floodmanagement.com",
+  apiUrl:
+    process.env.NEXT_PUBLIC_JAVA_API_URL ?? "http://localhost:4002",
   webhookUrl: "",
   slackWebhook: "",
   sessionTimeout: 30,
@@ -154,12 +155,12 @@ const defaultSettings: CRMSettings = {
   ipWhitelist: "",
   auditLogging: true,
   theme: "light",
-  primaryColor: "#ED1C24",
+  primaryColor: "#1d4ed8",
   sidebarPosition: "left",
   compactMode: false,
-  defaultMapZoom: 14,
-  defaultMapLat: 1.5559,
-  defaultMapLng: 110.3463,
+  defaultMapZoom: 12,
+  defaultMapLat: 5.9804,
+  defaultMapLng: 116.0735,
   mapStyle: "satellite",
   showInactiveNodes: true,
   autoBackup: true,
@@ -261,7 +262,7 @@ export default function SettingsPage() {
   const ActiveIcon = tabs.find((t) => t.id === activeTab)?.icon || GeneralIcon;
 
   // Common input class based on theme
-  const inputClass = `mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-red focus:ring-2 focus:ring-primary-red/20 ${
+  const inputClass = `mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/20 ${
     isDark
       ? "border-dark-border bg-dark-bg text-dark-text placeholder:text-dark-text-muted"
       : "border-light-grey bg-pure-white text-dark-charcoal"
@@ -303,7 +304,7 @@ export default function SettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={!hasChanges || isSaving}
-            className="rounded-xl bg-primary-red px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl bg-primary-blue px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? "Saving..." : "Save Changes"}
           </button>
@@ -326,8 +327,8 @@ export default function SettingsPage() {
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
                   isActive
                     ? isDark
-                      ? "bg-primary-red/20 text-primary-red"
-                      : "bg-light-red/60 text-primary-red"
+                      ? "bg-primary-blue/20 text-primary-blue"
+                      : "bg-light-blue/60 text-primary-blue"
                     : isDark
                       ? "text-dark-text hover:bg-dark-bg"
                       : "text-dark-charcoal hover:bg-very-light-grey"
@@ -345,7 +346,7 @@ export default function SettingsPage() {
           isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"
         }`}>
           <div className={`mb-6 flex items-center gap-3 border-b pb-4 ${isDark ? "border-dark-border" : "border-light-grey"}`}>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-primary-red ${isDark ? "bg-primary-red/20" : "bg-light-red/40"}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-primary-blue ${isDark ? "bg-primary-blue/20" : "bg-light-blue/40"}`}>
               <ActiveIcon className="h-5 w-5" />
             </div>
             <div>
@@ -444,7 +445,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.emailNotifications}
                       onChange={(e) => handleChange("emailNotifications", e.target.checked)}
-                      className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                   </label>
                   <label className={`flex items-center justify-between ${cardClass}`}>
@@ -456,7 +457,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.smsNotifications}
                       onChange={(e) => handleChange("smsNotifications", e.target.checked)}
-                      className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                   </label>
                   <label className={`flex items-center justify-between ${cardClass}`}>
@@ -468,7 +469,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.pushNotifications}
                       onChange={(e) => handleChange("pushNotifications", e.target.checked)}
-                      className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                   </label>
                 </div>
@@ -481,7 +482,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.dangerAlertEmail}
                       onChange={(e) => handleChange("dangerAlertEmail", e.target.checked)}
-                      className="h-4 w-4 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                     <span className={`text-sm ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Email for Danger-level alerts</span>
                   </label>
@@ -490,7 +491,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.warningAlertEmail}
                       onChange={(e) => handleChange("warningAlertEmail", e.target.checked)}
-                      className="h-4 w-4 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                     <span className={`text-sm ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Email for Warning-level alerts</span>
                   </label>
@@ -499,7 +500,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.dailyDigest}
                       onChange={(e) => handleChange("dailyDigest", e.target.checked)}
-                      className="h-4 w-4 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                     <span className={`text-sm ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Daily digest summary</span>
                   </label>
@@ -508,7 +509,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.weeklyReport}
                       onChange={(e) => handleChange("weeklyReport", e.target.checked)}
-                      className="h-4 w-4 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                     <span className={`text-sm ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Weekly analytics report</span>
                   </label>
@@ -547,29 +548,106 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.liveDataEnabled}
                       onChange={(e) => handleChange("liveDataEnabled", e.target.checked)}
-                      className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                      className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
                   </label>
                   <div>
                     <label className={labelClass}>Refresh Interval</label>
                     <p className={subLabelClass}>How often to fetch new data from the API (applies to all pages)</p>
-                    <select
-                      value={settings.refreshInterval}
-                      onChange={(e) => handleChange("refreshInterval", parseInt(e.target.value))}
-                      disabled={!settings.liveDataEnabled}
-                      className={`${inputClass} mt-2 max-w-xs disabled:opacity-50`}
-                    >
-                      <option value={10000}>10 seconds</option>
-                      <option value={30000}>30 seconds</option>
-                      <option value={60000}>1 minute</option>
-                      <option value={120000}>2 minutes</option>
-                      <option value={300000}>5 minutes</option>
-                      <option value={600000}>10 minutes</option>
-                      <option value={1800000}>30 minutes</option>
-                      <option value={3600000}>1 hour</option>
-                      <option value={7200000}>2 hours</option>
-                      <option value={18000000}>5 hours</option>
-                    </select>
+
+                    {/* Flexible number input */}
+                    {(() => {
+                      const secs = Math.round(settings.refreshInterval / 1000);
+                      const isDisabled = !settings.liveDataEnabled;
+                      const isInvalid = secs < 1 || secs > 86400;
+
+                      function formatDuration(s: number): string {
+                        if (s < 60) return `${s} second${s !== 1 ? "s" : ""}`;
+                        if (s < 3600) {
+                          const m = Math.floor(s / 60), r = s % 60;
+                          return r ? `${m}m ${r}s` : `${m} minute${m !== 1 ? "s" : ""}`;
+                        }
+                        const h = Math.floor(s / 3600), r = s % 3600;
+                        return r ? `${h}h ${Math.floor(r / 60)}m` : `${h} hour${h !== 1 ? "s" : ""}`;
+                      }
+
+                      const PRESETS = [
+                        { label: "5s",  val: 5 },
+                        { label: "10s", val: 10 },
+                        { label: "30s", val: 30 },
+                        { label: "1m",  val: 60 },
+                        { label: "5m",  val: 300 },
+                        { label: "15m", val: 900 },
+                        { label: "30m", val: 1800 },
+                        { label: "1h",  val: 3600 },
+                      ];
+
+                      return (
+                        <div className={`mt-2 space-y-3 ${isDisabled ? "opacity-50 pointer-events-none" : ""}`}>
+                          {/* Number input + unit label */}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={86400}
+                              step={1}
+                              value={secs}
+                              onChange={(e) => {
+                                const v = parseInt(e.target.value);
+                                if (!isNaN(v)) handleChange("refreshInterval", v * 1000);
+                              }}
+                              disabled={isDisabled}
+                              className={`${inputClass} w-32 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                                isInvalid ? "border-status-danger focus:ring-status-danger/20" : ""
+                              }`}
+                            />
+                            <span className={`text-sm font-medium ${isDark ? "text-dark-text-secondary" : "text-dark-charcoal/70"}`}>
+                              seconds
+                            </span>
+                            {/* Live preview badge */}
+                            {!isInvalid && (
+                              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                isDark ? "bg-status-green/20 text-status-green" : "bg-status-green/15 text-green-700"
+                              }`}>
+                                every {formatDuration(secs)}
+                              </span>
+                            )}
+                            {isInvalid && (
+                              <span className="rounded-full bg-status-danger/10 px-2.5 py-0.5 text-xs font-semibold text-status-danger">
+                                must be 1 – 86400
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quick preset chips */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {PRESETS.map((p) => (
+                              <button
+                                key={p.val}
+                                type="button"
+                                onClick={() => handleChange("refreshInterval", p.val * 1000)}
+                                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                                  secs === p.val
+                                    ? "bg-primary-blue text-pure-white"
+                                    : isDark
+                                      ? "bg-dark-bg border border-dark-border text-dark-text hover:border-primary-blue/60 hover:text-primary-blue"
+                                      : "bg-very-light-grey border border-light-grey text-dark-charcoal hover:border-primary-blue/60 hover:text-primary-blue"
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Estimated fetch count hint */}
+                          {!isInvalid && secs >= 1 && (
+                            <p className={`text-[11px] ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/45"}`}>
+                              ≈ {Math.round(3600 / secs).toLocaleString()} API calls / hour · {Math.round(86400 / secs).toLocaleString()} / day
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -598,7 +676,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.autoArchive}
                   onChange={(e) => handleChange("autoArchive", e.target.checked)}
-                  className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                  className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                 />
               </label>
               <div>
@@ -617,7 +695,7 @@ export default function SettingsPage() {
               <div className={`rounded-2xl p-4 ${isDark ? "bg-dark-bg" : "bg-very-light-grey"}`}>
                 <p className={`text-sm font-semibold ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Storage Usage</p>
                 <div className={`mt-2 h-3 overflow-hidden rounded-full ${isDark ? "bg-dark-border" : "bg-light-grey"}`}>
-                  <div className="h-full w-3/5 rounded-full bg-primary-red" />
+                  <div className="h-full w-3/5 rounded-full bg-primary-blue" />
                 </div>
                 <p className={`mt-2 text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/70"}`}>2.4 GB of 4 GB used (60%)</p>
               </div>
@@ -627,6 +705,9 @@ export default function SettingsPage() {
           {/* Integrations Tab */}
           {activeTab === "integrations" && (
             <div className="space-y-5">
+              <p className="rounded-xl border border-status-warning-1/40 bg-status-warning-1/10 px-4 py-2.5 text-xs font-medium text-status-warning-1">
+                (Saved locally — server enforcement not yet active)
+              </p>
               <div className={cardClass}>
                 <div className="flex items-center justify-between">
                   <div>
@@ -649,7 +730,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleTestConnection("Google Maps")}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold text-primary-red transition ${isDark ? "border-primary-red hover:bg-primary-red/20" : "border-primary-red hover:bg-light-red/20"}`}
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold text-primary-blue transition ${isDark ? "border-primary-blue hover:bg-primary-blue/20" : "border-primary-blue hover:bg-light-blue/20"}`}
                     >
                       Test
                     </button>
@@ -678,7 +759,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleTestConnection("Java API")}
-                      className={`rounded-xl border px-4 py-2 text-sm font-semibold text-primary-red transition ${isDark ? "border-primary-red hover:bg-primary-red/20" : "border-primary-red hover:bg-light-red/20"}`}
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold text-primary-blue transition ${isDark ? "border-primary-blue hover:bg-primary-blue/20" : "border-primary-blue hover:bg-light-blue/20"}`}
                     >
                       Test
                     </button>
@@ -712,6 +793,9 @@ export default function SettingsPage() {
           {/* Security Tab */}
           {activeTab === "security" && (
             <div className="space-y-5">
+              <p className="rounded-xl border border-status-warning-1/40 bg-status-warning-1/10 px-4 py-2.5 text-xs font-medium text-status-warning-1">
+                (Saved locally — server enforcement not yet active)
+              </p>
               <div>
                 <label className={labelClass}>Session Timeout</label>
                 <p className={subLabelClass}>Auto-logout after inactivity</p>
@@ -734,7 +818,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.requireMfa}
                   onChange={(e) => handleChange("requireMfa", e.target.checked)}
-                  className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                  className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                 />
               </label>
               <label className={`flex items-center justify-between ${cardClass}`}>
@@ -746,7 +830,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.auditLogging}
                   onChange={(e) => handleChange("auditLogging", e.target.checked)}
-                  className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                  className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                 />
               </label>
               <div>
@@ -784,10 +868,10 @@ export default function SettingsPage() {
                       onClick={() => handleChange("theme", theme)}
                       className={`rounded-xl px-5 py-2.5 text-sm font-semibold capitalize transition ${
                         settings.theme === theme
-                          ? "bg-primary-red text-pure-white"
+                          ? "bg-primary-blue text-pure-white"
                           : isDark
-                            ? "border border-dark-border text-dark-text hover:border-primary-red/60"
-                            : "border border-light-grey text-dark-charcoal hover:border-primary-red/60"
+                            ? "border border-dark-border text-dark-text hover:border-primary-blue/60"
+                            : "border border-light-grey text-dark-charcoal hover:border-primary-blue/60"
                       }`}
                     >
                       {theme}
@@ -822,10 +906,10 @@ export default function SettingsPage() {
                       onClick={() => handleChange("sidebarPosition", pos)}
                       className={`rounded-xl px-5 py-2.5 text-sm font-semibold capitalize transition ${
                         settings.sidebarPosition === pos
-                          ? "bg-primary-red text-pure-white"
+                          ? "bg-primary-blue text-pure-white"
                           : isDark
-                            ? "border border-dark-border text-dark-text hover:border-primary-red/60"
-                            : "border border-light-grey text-dark-charcoal hover:border-primary-red/60"
+                            ? "border border-dark-border text-dark-text hover:border-primary-blue/60"
+                            : "border border-light-grey text-dark-charcoal hover:border-primary-blue/60"
                       }`}
                     >
                       {pos}
@@ -842,7 +926,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.compactMode}
                   onChange={(e) => handleChange("compactMode", e.target.checked)}
-                  className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                  className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                 />
               </label>
             </div>
@@ -906,12 +990,12 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.showInactiveNodes}
                   onChange={(e) => handleChange("showInactiveNodes", e.target.checked)}
-                  className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                  className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                 />
               </label>
               <div className={`rounded-2xl p-4 ${isDark ? "bg-dark-bg" : "bg-very-light-grey"}`}>
                 <p className={`text-sm font-semibold ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Map Preview</p>
-                <div className="mt-2 h-40 overflow-hidden rounded-xl bg-gradient-to-br from-status-green/20 via-status-warning-1/20 to-primary-red/20">
+                <div className="mt-2 h-40 overflow-hidden rounded-xl bg-gradient-to-br from-status-green/20 via-status-warning-1/20 to-primary-blue/20">
                   <div className={`flex h-full items-center justify-center text-sm ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>
                     Map preview with current settings
                   </div>
@@ -923,6 +1007,9 @@ export default function SettingsPage() {
           {/* Backup Tab */}
           {activeTab === "backup" && (
             <div className="space-y-5">
+              <p className="rounded-xl border border-status-warning-1/40 bg-status-warning-1/10 px-4 py-2.5 text-xs font-medium text-status-warning-1">
+                (Saved locally — server enforcement not yet active)
+              </p>
               <label className={`flex items-center justify-between ${cardClass}`}>
                 <div>
                   <p className={`font-medium ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Automatic Backups</p>
@@ -932,7 +1019,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   checked={settings.autoBackup}
                   onChange={(e) => handleChange("autoBackup", e.target.checked)}
-                  className="h-5 w-5 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                  className="h-5 w-5 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                 />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1040,7 +1127,7 @@ export default function SettingsPage() {
               type="button"
               onClick={handleSave}
               disabled={!hasChanges || isSaving}
-              className="rounded-xl bg-primary-red px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl bg-primary-blue px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </button>

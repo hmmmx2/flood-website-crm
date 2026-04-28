@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import clsx from "clsx";
 import Link from "next/link";
@@ -75,7 +75,7 @@ const mainNavItems: NavItemType[] = [
   { label: "Flood Map", href: "/map", Icon: MapIcon, permission: "map.view" },
   { label: "Analytics", href: "/analytics", Icon: AnalyticsIcon, permission: "analytics.view" },
   { label: "Alerts", href: "/alerts", Icon: AlertsIcon, permission: "alerts.view" },
-  { label: "Community Blog", href: "/blog", Icon: BlogIcon, permission: "blog.view" },
+  { label: "Community", href: "/community", Icon: BlogIcon, permission: "blog.view" },
 ];
 
 const managementItems: NavItemType[] = [
@@ -147,8 +147,8 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
               className={clsx(
                 "flex h-10 w-10 items-center justify-center rounded-xl transition",
                 isDark
-                  ? "text-dark-text hover:bg-dark-border hover:text-primary-red"
-                  : "text-dark-charcoal hover:bg-light-red/40 hover:text-primary-red"
+                  ? "text-dark-text hover:bg-dark-border hover:text-primary-blue"
+                  : "text-dark-charcoal hover:bg-light-blue/40 hover:text-primary-blue"
               )}
               aria-label="Close menu"
             >
@@ -183,18 +183,18 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                       "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
                       isActive
                         ? isDark
-                          ? "bg-primary-red/20 text-primary-red"
-                          : "bg-light-red/60 text-primary-red"
+                          ? "bg-primary-blue/20 text-primary-blue"
+                          : "bg-light-blue/60 text-primary-blue"
                         : isDark
-                        ? "text-dark-text hover:bg-dark-border/50 hover:text-primary-red"
-                        : "text-dark-charcoal hover:bg-light-red/40 hover:text-primary-red"
+                        ? "text-dark-text hover:bg-dark-border/50 hover:text-primary-blue"
+                        : "text-dark-charcoal hover:bg-light-blue/40 hover:text-primary-blue"
                     )}
                   >
                     <ItemIcon
                       className={clsx(
                         "h-5 w-5 shrink-0",
                         isActive
-                          ? "text-primary-red"
+                          ? "text-primary-blue"
                           : isDark
                           ? "text-dark-text-secondary"
                           : "text-dark-charcoal"
@@ -239,18 +239,18 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                           "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
                           isActive
                             ? isDark
-                              ? "bg-primary-red/20 text-primary-red"
-                              : "bg-light-red/60 text-primary-red"
+                              ? "bg-primary-blue/20 text-primary-blue"
+                              : "bg-light-blue/60 text-primary-blue"
                             : isDark
-                            ? "text-dark-text hover:bg-dark-border/50 hover:text-primary-red"
-                            : "text-dark-charcoal hover:bg-light-red/40 hover:text-primary-red"
+                            ? "text-dark-text hover:bg-dark-border/50 hover:text-primary-blue"
+                            : "text-dark-charcoal hover:bg-light-blue/40 hover:text-primary-blue"
                         )}
                       >
                         <ItemIcon
                           className={clsx(
                             "h-5 w-5 shrink-0",
                             isActive
-                              ? "text-primary-red"
+                              ? "text-primary-blue"
                               : isDark
                               ? "text-dark-text-secondary"
                               : "text-dark-charcoal"
@@ -280,7 +280,7 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                 isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"
               )}
             >
-              © 2025 Malaysian Red Crescent
+              © {new Date().getFullYear()} Pop Up Advertising &amp; Information Ent.
             </p>
           </div>
         </div>

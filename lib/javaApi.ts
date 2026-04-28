@@ -5,12 +5,16 @@
 // Never import this in client components.
 //
 // Environment:
-//   JAVA_API_URL  — set in docker-compose (http://api:3001)
-//                   or .env.local for local dev (http://localhost:3001)
+//   JAVA_API_URL  — CRM Spring Boot (`flood-service-crm`, default port 4002).
+//                   Docker: http://crm-api:4002 (see flood-service-crm/docker-compose.yml)
+//                   Local:  http://localhost:4002
 // ─────────────────────────────────────────────────────────────
 
 const JAVA_API_URL =
-  process.env.JAVA_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  process.env.JAVA_API_URL ||
+  process.env.NEXT_PUBLIC_JAVA_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://localhost:4002";
 
 type FetchOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";

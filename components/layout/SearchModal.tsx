@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -78,6 +78,26 @@ const resultIcons: Record<SearchResult["icon"], React.ReactNode> = {
       <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 00.12-.64l-2-3.46a.5.5 0 00-.61-.22l-2.49 1a7.03 7.03 0 00-1.69-.98l-.38-2.65A.49.49 0 0014 2h-4a.49.49 0 00-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.5.5 0 00-.61.22l-2 3.46a.5.5 0 00.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 00-.12.64l2 3.46a.5.5 0 00.61.22l2.49-1c.52.39 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65a7.03 7.03 0 001.69-.98l2.49 1a.5.5 0 00.61-.22l2-3.46a.5.5 0 00-.12-.64l-2.11-1.65zM12 15.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z" />
     </svg>
   ),
+  blog: (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+    </svg>
+  ),
+  community: (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+    </svg>
+  ),
+  reports: (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+    </svg>
+  ),
+  broadcasts: (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path d="M18 9.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11.5 2C6.81 2 3 5.81 3 10.5c0 3.5 2.1 6.5 5.1 7.9L7 21l3.5-1.6c.3.1.65.1 1 .1 4.69 0 8.5-3.81 8.5-8.5S16.19 2 11.5 2zM8 11.5c-.83 0-1.5-.67-1.5-1.5S7.17 8.5 8 8.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3.5 0c-.83 0-1.5-.67-1.5-1.5S10.67 8.5 11.5 8.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3.5 0c-.83 0-1.5-.67-1.5-1.5S14.17 8.5 15 8.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+    </svg>
+  ),
 };
 
 // Highlighted text component
@@ -87,7 +107,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, index) =>
         part.isMatch ? (
-          <mark key={index} className="bg-light-red text-primary-red font-bold rounded px-0.5">
+          <mark key={index} className="bg-light-blue text-primary-blue font-bold rounded px-0.5">
             {part.text}
           </mark>
         ) : (
@@ -202,7 +222,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             }`}
           >
             <div className="flex items-center gap-3">
-              <SearchIcon className="h-6 w-6 text-primary-red" />
+              <SearchIcon className="h-6 w-6 text-primary-blue" />
               <input
                 ref={inputRef}
                 type="text"
@@ -246,7 +266,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               {searchTerm.trim() ? (
                 <>
                   {displayResults.length} page{displayResults.length !== 1 ? "s" : ""} found for &quot;
-                  <span className="text-primary-red">{searchTerm}</span>&quot;
+                  <span className="text-primary-blue">{searchTerm}</span>&quot;
                 </>
               ) : (
                 <>All Pages ({displayResults.length})</>
@@ -266,8 +286,8 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   className={`flex w-full items-center gap-4 px-4 py-4 text-left transition-colors ${
                     selectedIndex === index
                       ? isDark
-                        ? "bg-primary-red/20"
-                        : "bg-light-red/40"
+                        ? "bg-primary-blue/20"
+                        : "bg-light-blue/40"
                       : isDark
                       ? "hover:bg-dark-border/50"
                       : "hover:bg-very-light-grey"
@@ -277,10 +297,10 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   <span
                     className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-colors ${
                       selectedIndex === index
-                        ? "bg-primary-red text-pure-white"
+                        ? "bg-primary-blue text-pure-white"
                         : isDark
-                        ? "bg-primary-red/20 text-primary-red"
-                        : "bg-light-red/60 text-primary-red"
+                        ? "bg-primary-blue/20 text-primary-blue"
+                        : "bg-light-blue/60 text-primary-blue"
                     }`}
                   >
                     {resultIcons[result.icon]}
@@ -315,8 +335,8 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     </p>
                     <div className="mt-1 flex items-center gap-2">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-primary-red ${
-                          isDark ? "bg-primary-red/20" : "bg-primary-red/10"
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-primary-blue ${
+                          isDark ? "bg-primary-blue/20" : "bg-primary-blue/10"
                         }`}
                       >
                         {result.category}
@@ -333,7 +353,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
                   {/* Arrow indicator */}
                   {selectedIndex === index && (
-                    <div className="flex items-center gap-1 text-primary-red">
+                    <div className="flex items-center gap-1 text-primary-blue">
                       <span className="text-xs font-medium">Open</span>
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />

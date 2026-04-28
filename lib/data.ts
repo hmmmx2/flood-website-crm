@@ -1,4 +1,4 @@
-/**
+﻿/**
  * lib/data.ts — UI constants only.
  *
  * ⚠️  All hardcoded data arrays (nodes, alerts, sensor readings, trend series)
@@ -51,10 +51,10 @@ export const statusToneMap: Record<
     dot: "bg-status-warning-2",
   },
   Danger: {
-    bg: "bg-light-red",
-    text: "text-primary-red",
-    border: "border-primary-red/50",
-    dot: "bg-primary-red",
+    bg: "bg-light-blue",
+    text: "text-primary-blue",
+    border: "border-primary-blue/50",
+    dot: "bg-primary-blue",
   },
 };
 
@@ -89,7 +89,7 @@ export const statusLegend = [
   {
     label: "Danger" as NodeStatus,
     description: "Water Level 3",
-    color: "bg-light-red text-primary-red",
+    color: "bg-light-blue text-primary-blue",
     water_level: 3,
   },
 ];

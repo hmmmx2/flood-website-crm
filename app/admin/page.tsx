@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 
@@ -163,23 +163,24 @@ export default function AccountSettingsPage() {
     }
 
     setIsSaving(true);
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    updateUser({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      department: formData.department,
-      notifications: formData.notifications,
-      emailAlerts: formData.emailAlerts,
-      smsAlerts: formData.smsAlerts,
-    });
-
-    setOriginalData(formData);
-    setIsSaving(false);
-    setSaveMessage({ type: "success", text: "Settings saved successfully!" });
-    setTimeout(() => setSaveMessage(null), 3000);
+    try {
+      updateUser({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        notifications: formData.notifications,
+        emailAlerts: formData.emailAlerts,
+        smsAlerts: formData.smsAlerts,
+      });
+      setOriginalData(formData);
+      setSaveMessage({ type: "success", text: "Settings saved successfully!" });
+    } catch {
+      setSaveMessage({ type: "error", text: "Failed to save settings. Please try again." });
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
   };
 
   const handleCancel = () => {
@@ -253,7 +254,7 @@ export default function AccountSettingsPage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="h-8 w-8 animate-spin rounded-full border-3 border-light-grey border-t-primary-red" />
+        <div className="h-8 w-8 animate-spin rounded-full border-3 border-light-grey border-t-primary-blue" />
       </div>
     );
   }
@@ -266,7 +267,7 @@ export default function AccountSettingsPage() {
           className={`fixed top-20 right-6 z-50 rounded-xl px-4 py-3 text-sm font-semibold shadow-lg transition-all ${
             saveMessage.type === "success"
               ? "bg-status-green text-pure-white"
-              : "bg-primary-red text-pure-white"
+              : "bg-primary-blue text-pure-white"
           }`}
         >
           {saveMessage.text}
@@ -286,8 +287,8 @@ export default function AccountSettingsPage() {
         {/* Profile Card */}
         <article className={`rounded-3xl border p-6 shadow-sm transition-colors ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`}>
           <div className="flex flex-col items-center text-center">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-primary-red ${isDark ? "bg-primary-red/20" : "bg-light-red/30"}`}>
-              <ProfileIcon className="h-12 w-12 text-primary-red" />
+            <div className={`flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-primary-blue ${isDark ? "bg-primary-blue/20" : "bg-light-blue/30"}`}>
+              <ProfileIcon className="h-12 w-12 text-primary-blue" />
             </div>
             <h2 className={`mt-4 text-xl font-semibold transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
               {user.name}
@@ -348,7 +349,7 @@ export default function AccountSettingsPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-red focus:ring-2 focus:ring-primary-red/20 ${
+                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/20 ${
                     isDark
                       ? "border-dark-border bg-dark-bg text-dark-text placeholder:text-dark-text-muted"
                       : "border-light-grey bg-pure-white text-dark-charcoal"
@@ -368,7 +369,7 @@ export default function AccountSettingsPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-red focus:ring-2 focus:ring-primary-red/20 ${
+                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/20 ${
                     isDark
                       ? "border-dark-border bg-dark-bg text-dark-text placeholder:text-dark-text-muted"
                       : "border-light-grey bg-pure-white text-dark-charcoal"
@@ -388,7 +389,7 @@ export default function AccountSettingsPage() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-red focus:ring-2 focus:ring-primary-red/20 ${
+                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/20 ${
                     isDark
                       ? "border-dark-border bg-dark-bg text-dark-text placeholder:text-dark-text-muted"
                       : "border-light-grey bg-pure-white text-dark-charcoal"
@@ -407,7 +408,7 @@ export default function AccountSettingsPage() {
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-red focus:ring-2 focus:ring-primary-red/20 ${
+                  className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/20 ${
                     isDark
                       ? "border-dark-border bg-dark-bg text-dark-text"
                       : "border-light-grey bg-pure-white text-dark-charcoal"
@@ -432,7 +433,7 @@ export default function AccountSettingsPage() {
                     name="notifications"
                     checked={formData.notifications}
                     onChange={handleChange}
-                    className="h-4 w-4 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                    className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                   />
                   <span className={`text-sm transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
                     Enable push notifications
@@ -444,7 +445,7 @@ export default function AccountSettingsPage() {
                     name="emailAlerts"
                     checked={formData.emailAlerts}
                     onChange={handleChange}
-                    className="h-4 w-4 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                    className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                   />
                   <span className={`text-sm transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
                     Email alerts for danger-level events
@@ -456,7 +457,7 @@ export default function AccountSettingsPage() {
                     name="smsAlerts"
                     checked={formData.smsAlerts}
                     onChange={handleChange}
-                    className="h-4 w-4 rounded border-light-grey text-primary-red focus:ring-primary-red/40"
+                    className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                   />
                   <span className={`text-sm transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
                     SMS alerts for critical events
@@ -481,7 +482,7 @@ export default function AccountSettingsPage() {
               <button
                 type="submit"
                 disabled={isSaving || !hasChanges}
-                className="rounded-xl bg-primary-red px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl bg-primary-blue px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
@@ -499,8 +500,8 @@ export default function AccountSettingsPage() {
           {/* Password Card */}
           <div className={`rounded-2xl border p-4 transition-colors ${isDark ? "border-dark-border bg-dark-bg" : "border-light-grey"}`}>
             <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? "bg-primary-red/20" : "bg-light-red"}`}>
-                <LockIcon className="h-5 w-5 text-primary-red" />
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? "bg-primary-blue/20" : "bg-light-blue"}`}>
+                <LockIcon className="h-5 w-5 text-primary-blue" />
               </div>
               <div>
                 <p className={`text-sm font-semibold transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Password</p>
@@ -512,7 +513,7 @@ export default function AccountSettingsPage() {
             <button
               type="button"
               onClick={() => setShowPasswordModal(true)}
-              className="mt-3 text-sm font-semibold text-primary-red hover:underline"
+              className="mt-3 text-sm font-semibold text-primary-blue hover:underline"
             >
               Change Password
             </button>
@@ -521,8 +522,8 @@ export default function AccountSettingsPage() {
           {/* 2FA Card */}
           <div className={`rounded-2xl border p-4 transition-colors ${isDark ? "border-dark-border bg-dark-bg" : "border-light-grey"}`}>
             <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? "bg-primary-red/20" : "bg-light-red"}`}>
-                <ShieldIcon className="h-5 w-5 text-primary-red" />
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? "bg-primary-blue/20" : "bg-light-blue"}`}>
+                <ShieldIcon className="h-5 w-5 text-primary-blue" />
               </div>
               <div>
                 <p className={`text-sm font-semibold transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
@@ -536,7 +537,7 @@ export default function AccountSettingsPage() {
             <button
               type="button"
               onClick={() => setShow2FAModal(true)}
-              className="mt-3 text-sm font-semibold text-primary-red hover:underline"
+              className="mt-3 text-sm font-semibold text-primary-blue hover:underline"
             >
               {user.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
             </button>
@@ -545,8 +546,8 @@ export default function AccountSettingsPage() {
           {/* Sessions Card */}
           <div className={`rounded-2xl border p-4 transition-colors ${isDark ? "border-dark-border bg-dark-bg" : "border-light-grey"}`}>
             <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? "bg-primary-red/20" : "bg-light-red"}`}>
-                <DeviceIcon className="h-5 w-5 text-primary-red" />
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? "bg-primary-blue/20" : "bg-light-blue"}`}>
+                <DeviceIcon className="h-5 w-5 text-primary-blue" />
               </div>
               <div>
                 <p className={`text-sm font-semibold transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
@@ -560,7 +561,7 @@ export default function AccountSettingsPage() {
             <button
               type="button"
               onClick={() => setShowSessionsModal(true)}
-              className="mt-3 text-sm font-semibold text-primary-red hover:underline"
+              className="mt-3 text-sm font-semibold text-primary-blue hover:underline"
             >
               View Sessions
             </button>
@@ -577,7 +578,7 @@ export default function AccountSettingsPage() {
             </h3>
             <form onSubmit={handlePasswordChange} className="mt-4 space-y-4">
               {passwordError && (
-                <div className="rounded-xl bg-primary-red/10 px-4 py-2 text-sm text-primary-red">
+                <div className="rounded-xl bg-primary-blue/10 px-4 py-2 text-sm text-primary-blue">
                   {passwordError}
                 </div>
               )}
@@ -591,7 +592,7 @@ export default function AccountSettingsPage() {
                     type={showPasswords.current ? "text" : "password"}
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    className={`w-full rounded-xl border px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-primary-red ${
+                    className={`w-full rounded-xl border px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-primary-blue ${
                       isDark ? "border-dark-border bg-dark-bg text-dark-text" : "border-light-grey bg-pure-white text-dark-charcoal"
                     }`}
                     required
@@ -615,11 +616,11 @@ export default function AccountSettingsPage() {
                     type={showPasswords.new ? "text" : "password"}
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                    className={`w-full rounded-xl border px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-primary-red ${
+                    className={`w-full rounded-xl border px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-primary-blue ${
                       isDark ? "border-dark-border bg-dark-bg text-dark-text" : "border-light-grey bg-pure-white text-dark-charcoal"
                     }`}
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                   <button
                     type="button"
@@ -630,7 +631,7 @@ export default function AccountSettingsPage() {
                   </button>
                 </div>
                 <p className={`mt-1 text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>
-                  Minimum 6 characters
+                  Password must be at least 8 characters
                 </p>
               </div>
 
@@ -643,7 +644,7 @@ export default function AccountSettingsPage() {
                     type={showPasswords.confirm ? "text" : "password"}
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className={`w-full rounded-xl border px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-primary-red ${
+                    className={`w-full rounded-xl border px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-primary-blue ${
                       isDark ? "border-dark-border bg-dark-bg text-dark-text" : "border-light-grey bg-pure-white text-dark-charcoal"
                     }`}
                     required
@@ -675,7 +676,7 @@ export default function AccountSettingsPage() {
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="rounded-xl bg-primary-red px-4 py-2 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90 disabled:opacity-50"
+                  className="rounded-xl bg-primary-blue px-4 py-2 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90 disabled:opacity-50"
                 >
                   {isChangingPassword ? "Changing..." : "Change Password"}
                 </button>
@@ -690,8 +691,8 @@ export default function AccountSettingsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark-charcoal/50 backdrop-blur-sm">
           <div className={`w-full max-w-md rounded-3xl border p-6 shadow-xl ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`}>
             <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${isDark ? "bg-primary-red/20" : "bg-light-red"}`}>
-                <ShieldIcon className="h-6 w-6 text-primary-red" />
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${isDark ? "bg-primary-blue/20" : "bg-light-blue"}`}>
+                <ShieldIcon className="h-6 w-6 text-primary-blue" />
               </div>
               <div>
                 <h3 className={`text-lg font-semibold ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
@@ -782,7 +783,7 @@ export default function AccountSettingsPage() {
                       <button
                         type="button"
                         onClick={() => terminateSession(session.id)}
-                        className="text-xs font-semibold text-primary-red hover:underline"
+                        className="text-xs font-semibold text-primary-blue hover:underline"
                       >
                         Terminate
                       </button>
@@ -800,7 +801,7 @@ export default function AccountSettingsPage() {
                   setSaveMessage({ type: "success", text: "All other sessions terminated" });
                   setTimeout(() => setSaveMessage(null), 3000);
                 }}
-                className="mt-4 w-full rounded-xl border border-primary-red bg-primary-red/10 px-4 py-2 text-sm font-semibold text-primary-red transition hover:bg-primary-red/20"
+                className="mt-4 w-full rounded-xl border border-primary-blue bg-primary-blue/10 px-4 py-2 text-sm font-semibold text-primary-blue transition hover:bg-primary-blue/20"
               >
                 Terminate All Other Sessions
               </button>

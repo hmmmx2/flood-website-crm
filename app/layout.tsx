@@ -71,7 +71,9 @@ export default function RootLayout({
               localStorage.setItem('flood_access_token',  decodeURIComponent(at));
               localStorage.setItem('flood_refresh_token', decodeURIComponent(rt));
               localStorage.setItem('flood_auth_user',     JSON.stringify(crmUser));
-            } catch(e) {}
+            } catch(e) {
+              if (process.env.NODE_ENV !== 'production') console.error('[auth-callback] token init failed', e);
+            }
           })();
         `}</Script>
 

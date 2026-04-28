@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ComponentType, SVGProps } from "react";
 
@@ -67,11 +67,11 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
           isCollapsed ? "justify-center" : "justify-start",
           isActive
             ? isDark
-              ? "bg-primary-red/20 text-primary-red"
-              : "bg-light-red/60 text-primary-red"
+              ? "bg-primary-blue/20 text-primary-blue"
+              : "bg-light-blue/60 text-primary-blue"
             : isDark
-              ? "text-dark-text hover:bg-dark-border/50 hover:text-primary-red"
-              : "text-dark-charcoal hover:bg-light-red/40 hover:text-primary-red"
+              ? "text-dark-text hover:bg-dark-border/50 hover:text-primary-blue"
+              : "text-dark-charcoal hover:bg-light-blue/40 hover:text-primary-blue"
         )}
         aria-current={isActive ? "page" : undefined}
         title={isCollapsed ? item.label : undefined}
@@ -80,7 +80,7 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
           className={clsx(
             "h-5 w-5 shrink-0",
             isActive
-              ? "text-primary-red"
+              ? "text-primary-blue"
               : isDark
                 ? "text-dark-text-secondary"
                 : "text-dark-charcoal"

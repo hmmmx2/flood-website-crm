@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -396,7 +396,7 @@ export default function SensorsPage() {
       <section className="space-y-6">
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <div className={`h-12 w-12 animate-spin rounded-full border-4 ${isDark ? "border-dark-border border-t-primary-red" : "border-light-grey border-t-primary-red"}`} />
+            <div className={`h-12 w-12 animate-spin rounded-full border-4 ${isDark ? "border-dark-border border-t-primary-blue" : "border-light-grey border-t-primary-blue"}`} />
             <p className={`text-sm font-medium ${isDark ? "text-dark-text-secondary" : "text-dark-charcoal/70"}`}>
               Loading sensor data...
             </p>
@@ -411,8 +411,8 @@ export default function SensorsPage() {
       <section className="space-y-6">
         <div className="flex min-h-[400px] items-center justify-center">
           <div className={`rounded-3xl border p-8 text-center ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`}>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-red/20">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8 text-primary-red">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-blue/20">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8 text-primary-blue">
                 <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
               </svg>
             </div>
@@ -425,7 +425,7 @@ export default function SensorsPage() {
             <button
               type="button"
               onClick={fetchNodes}
-              className="rounded-xl bg-primary-red px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90"
+              className="rounded-xl bg-primary-blue px-5 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90"
             >
               Retry Connection
             </button>
@@ -463,8 +463,8 @@ export default function SensorsPage() {
             onClick={fetchNodes}
             className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
               isDark
-                ? "border-dark-border text-dark-text hover:border-primary-red hover:text-primary-red"
-                : "border-light-grey text-dark-charcoal hover:border-primary-red hover:text-primary-red"
+                ? "border-dark-border text-dark-text hover:border-primary-blue hover:text-primary-blue"
+                : "border-light-grey text-dark-charcoal hover:border-primary-blue hover:text-primary-blue"
             }`}
             title="Refresh data"
           >
@@ -480,8 +480,8 @@ export default function SensorsPage() {
                 disabled={filteredRows.length === 0}
                 className={`flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   isDark
-                    ? "border-dark-border text-dark-text hover:border-primary-red hover:text-primary-red"
-                    : "border-light-grey text-dark-charcoal hover:border-primary-red hover:text-primary-red"
+                    ? "border-dark-border text-dark-text hover:border-primary-blue hover:text-primary-blue"
+                    : "border-light-grey text-dark-charcoal hover:border-primary-blue hover:text-primary-blue"
                 }`}
               >
                 <ExportIcon className="h-4 w-4" />
@@ -517,7 +517,7 @@ export default function SensorsPage() {
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11h5l-2.5 4 2.5 4h-5l-2.5-4 2.5-4z"/>
                     </svg>
                     <div>
-                      <p>Export as Excel (.xlsx)</p>
+                      <p>Export as Excel (.xls)</p>
                       <p className={`text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Microsoft Excel format</p>
                     </div>
                   </button>
@@ -559,8 +559,8 @@ export default function SensorsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <div className={`flex flex-1 min-w-[220px] items-center gap-2 rounded-full border border-primary-red px-4 py-2 text-sm transition-colors ${isDark ? "bg-dark-card text-dark-text" : "bg-pure-white text-dark-charcoal"}`}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 text-primary-red" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <div className={`flex flex-1 min-w-[220px] items-center gap-2 rounded-full border border-primary-blue px-4 py-2 text-sm transition-colors ${isDark ? "bg-dark-card text-dark-text" : "bg-pure-white text-dark-charcoal"}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 text-primary-blue" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="11" cy="11" r="7" />
             <path d="M16.5 16.5L21 21" />
           </svg>
@@ -609,19 +609,19 @@ export default function SensorsPage() {
       {/* Data Table */}
       <div className={`overflow-x-auto rounded-3xl border transition-colors ${isDark ? "border-dark-border" : "border-light-grey"}`}>
         <table className={`min-w-[960px] w-full border-collapse text-left text-sm transition-colors ${isDark ? "text-dark-text-secondary" : "text-dark-charcoal"}`}>
-          <thead className={`text-xs uppercase tracking-wide transition-colors ${isDark ? "bg-dark-bg text-dark-text-muted" : "bg-light-red text-dark-charcoal"}`}>
+          <thead className={`text-xs uppercase tracking-wide transition-colors ${isDark ? "bg-dark-bg text-dark-text-muted" : "bg-light-blue text-dark-charcoal"}`}>
             <tr>
               {columns.map((column) => {
                 const isSorted = sortConfig?.key === column.key;
                 return (
                   <th
                     key={column.key}
-                    className={`border px-4 py-3 font-semibold ${isDark ? "border-dark-border" : "border-light-red"}`}
+                    className={`border px-4 py-3 font-semibold ${isDark ? "border-dark-border" : "border-light-blue"}`}
                   >
                     {column.sortable ? (
                       <button type="button" onClick={() => handleSort(column.key)} className="flex items-center gap-2">
                         {column.label}
-                        {isSorted && <span className="text-primary-red">{sortConfig?.direction === "asc" ? "▲" : "▼"}</span>}
+                        {isSorted && <span className="text-primary-blue">{sortConfig?.direction === "asc" ? "▲" : "▼"}</span>}
                       </button>
                     ) : (
                       column.label
@@ -637,14 +637,14 @@ export default function SensorsPage() {
                 key={row.id}
                 className={clsx(
                   "border transition-colors",
-                  isDark ? "border-dark-border" : "border-light-red",
+                  isDark ? "border-dark-border" : "border-light-blue",
                   index % 2 === 0
                     ? isDark ? "bg-dark-card" : "bg-pure-white"
-                    : isDark ? "bg-dark-bg" : "bg-light-red/20"
+                    : isDark ? "bg-dark-bg" : "bg-light-blue/20"
                 )}
               >
                 <td className={`px-4 py-3 font-semibold ${isDark ? "text-dark-text" : ""}`}>{row.node_id}</td>
-                <td className="px-4 py-3 text-primary-red font-bold">{row.water_level} ft</td>
+                <td className="px-4 py-3 text-primary-blue font-bold">{row.water_level} ft</td>
                 <td className="px-4 py-3">{row.latitude.toFixed(6)}</td>
                 <td className="px-4 py-3">{row.longitude.toFixed(6)}</td>
                 <td className="px-4 py-3">

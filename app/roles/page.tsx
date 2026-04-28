@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "@/lib/ThemeContext";
@@ -50,7 +50,7 @@ function relativeTime(iso: string | null): string {
 function roleBadge(role: string) {
   const isAdmin = role.toLowerCase() === "admin";
   return isAdmin
-    ? "bg-primary-red/10 text-primary-red border border-primary-red/30"
+    ? "bg-primary-blue/10 text-primary-blue border border-primary-blue/30"
     : "bg-status-green/10 text-status-green border border-status-green/30";
 }
 
@@ -208,7 +208,7 @@ export default function RolesPage() {
     : "border-light-grey bg-pure-white";
   const text = isDark ? "text-dark-text" : "text-dark-charcoal";
   const muted = isDark ? "text-dark-text-muted" : "text-dark-charcoal/60";
-  const inputCls = `w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-red focus:ring-2 focus:ring-primary-red/20 ${
+  const inputCls = `w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/20 ${
     isDark
       ? "border-dark-border bg-dark-bg text-dark-text placeholder:text-dark-text-muted"
       : "border-light-grey bg-very-light-grey text-dark-charcoal"
@@ -226,7 +226,7 @@ export default function RolesPage() {
         </div>
         <button
           onClick={() => { setForm(EMPTY_FORM); setFormError(null); setShowAddModal(true); }}
-          className="rounded-xl bg-primary-red px-4 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-red/90"
+          className="rounded-xl bg-primary-blue px-4 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90"
         >
           + Add User
         </button>
@@ -255,12 +255,12 @@ export default function RolesPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className={`h-8 w-8 animate-spin rounded-full border-4 ${isDark ? "border-dark-border border-t-primary-red" : "border-light-grey border-t-primary-red"}`} />
+            <div className={`h-8 w-8 animate-spin rounded-full border-4 ${isDark ? "border-dark-border border-t-primary-blue" : "border-light-grey border-t-primary-blue"}`} />
           </div>
         ) : error ? (
           <div className="py-12 text-center">
-            <p className="text-sm text-primary-red">{error}</p>
-            <button onClick={fetchUsers} className="mt-3 text-sm underline text-primary-red">Retry</button>
+            <p className="text-sm text-primary-blue">{error}</p>
+            <button onClick={fetchUsers} className="mt-3 text-sm underline text-primary-blue">Retry</button>
           </div>
         ) : users.length === 0 ? (
           <p className={`py-12 text-center text-sm ${muted}`}>No users found.</p>
@@ -282,12 +282,12 @@ export default function RolesPage() {
                   >
                     <td className={`px-6 py-4 font-medium ${text}`}>
                       <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role.toLowerCase() === "admin" ? "bg-primary-red text-white" : "bg-status-green/20 text-status-green"}`}>
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role.toLowerCase() === "admin" ? "bg-primary-blue text-white" : "bg-status-green/20 text-status-green"}`}>
                           {u.displayName.charAt(0).toUpperCase()}
                         </div>
                         {u.displayName}
                         {u.id === currentUser?.id && (
-                          <span className="text-xs text-primary-red font-normal">(you)</span>
+                          <span className="text-xs text-primary-blue font-normal">(you)</span>
                         )}
                       </div>
                     </td>
@@ -312,7 +312,7 @@ export default function RolesPage() {
                         {u.id !== currentUser?.id && (
                           <button
                             onClick={() => setDeleteTarget(u)}
-                            className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary-red/10 text-primary-red hover:bg-primary-red/20 transition-colors"
+                            className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary-blue/10 text-primary-blue hover:bg-primary-blue/20 transition-colors"
                           >
                             Delete
                           </button>
@@ -359,10 +359,10 @@ export default function RolesPage() {
                 <option value="admin">Admin</option>
               </select>
             </div>
-            {formError && <p className="text-xs text-primary-red">{formError}</p>}
+            {formError && <p className="text-xs text-primary-blue">{formError}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setShowAddModal(false)} className={`rounded-xl px-4 py-2 text-sm font-medium ${isDark ? "bg-dark-bg text-dark-text hover:bg-dark-border" : "bg-very-light-grey text-dark-charcoal hover:bg-light-grey"}`}>Cancel</button>
-              <button type="submit" disabled={isSaving} className="rounded-xl bg-primary-red px-4 py-2 text-sm font-semibold text-white hover:bg-primary-red/90 disabled:opacity-50">
+              <button type="submit" disabled={isSaving} className="rounded-xl bg-primary-blue px-4 py-2 text-sm font-semibold text-white hover:bg-primary-blue/90 disabled:opacity-50">
                 {isSaving ? "Creating…" : "Create User"}
               </button>
             </div>
@@ -395,10 +395,10 @@ export default function RolesPage() {
                 <option value="admin">Admin</option>
               </select>
             </div>
-            {formError && <p className="text-xs text-primary-red">{formError}</p>}
+            {formError && <p className="text-xs text-primary-blue">{formError}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setEditUser(null)} className={`rounded-xl px-4 py-2 text-sm font-medium ${isDark ? "bg-dark-bg text-dark-text hover:bg-dark-border" : "bg-very-light-grey text-dark-charcoal hover:bg-light-grey"}`}>Cancel</button>
-              <button type="submit" disabled={isSaving} className="rounded-xl bg-primary-red px-4 py-2 text-sm font-semibold text-white hover:bg-primary-red/90 disabled:opacity-50">
+              <button type="submit" disabled={isSaving} className="rounded-xl bg-primary-blue px-4 py-2 text-sm font-semibold text-white hover:bg-primary-blue/90 disabled:opacity-50">
                 {isSaving ? "Saving…" : "Save Changes"}
               </button>
             </div>
@@ -415,7 +415,7 @@ export default function RolesPage() {
           </p>
           <div className="mt-6 flex justify-end gap-3">
             <button onClick={() => setDeleteTarget(null)} className={`rounded-xl px-4 py-2 text-sm font-medium ${isDark ? "bg-dark-bg text-dark-text hover:bg-dark-border" : "bg-very-light-grey text-dark-charcoal hover:bg-light-grey"}`}>Cancel</button>
-            <button onClick={handleDelete} disabled={isSaving} className="rounded-xl bg-primary-red px-4 py-2 text-sm font-semibold text-white hover:bg-primary-red/90 disabled:opacity-50">
+            <button onClick={handleDelete} disabled={isSaving} className="rounded-xl bg-primary-blue px-4 py-2 text-sm font-semibold text-white hover:bg-primary-blue/90 disabled:opacity-50">
               {isSaving ? "Deleting…" : "Delete User"}
             </button>
           </div>

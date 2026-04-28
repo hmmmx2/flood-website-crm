@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useTheme } from "@/lib/ThemeContext";
@@ -99,7 +99,7 @@ export default function CommunityModerationPage() {
     <section className="space-y-6">
       {/* BUG-S4-06 — inline delete confirmation bar */}
       {pendingDeleteId && pendingPost && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 rounded-2xl bg-white border border-red-200 shadow-xl px-5 py-3 animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 rounded-2xl bg-white border border-gray-200 shadow-xl px-5 py-3 animate-in slide-in-from-bottom-4">
           <span className="text-sm font-medium text-gray-700 max-w-xs truncate">
             Remove &ldquo;{pendingPost.title}&rdquo;?
           </span>
@@ -141,7 +141,7 @@ export default function CommunityModerationPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by title or author…"
-          className={`flex-1 min-w-[200px] rounded-xl border px-4 py-2.5 text-sm outline-none transition focus:border-primary-red/60 focus:ring-2 focus:ring-primary-red/10 ${
+          className={`flex-1 min-w-[200px] rounded-xl border px-4 py-2.5 text-sm outline-none transition focus:border-primary-blue/60 focus:ring-2 focus:ring-primary-blue/10 ${
             isDark ? "bg-dark-card border-dark-border text-dark-text placeholder:text-dark-text-muted" : "bg-pure-white border-light-grey text-dark-charcoal"
           }`}
         />
@@ -150,7 +150,7 @@ export default function CommunityModerationPage() {
             <button key={s} type="button" onClick={() => setSort(s)}
               className={`px-4 py-2.5 text-sm font-semibold transition capitalize ${
                 sort === s
-                  ? "bg-primary-red text-pure-white"
+                  ? "bg-primary-blue text-pure-white"
                   : isDark ? "bg-dark-card text-dark-text-secondary hover:bg-dark-border/40" : "bg-pure-white text-dark-charcoal/70 hover:bg-very-light-grey"
               }`}>
               {s}
@@ -163,7 +163,7 @@ export default function CommunityModerationPage() {
       <div className={`rounded-3xl border overflow-hidden ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`}>
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className={`h-10 w-10 animate-spin rounded-full border-4 ${isDark ? "border-dark-border border-t-primary-red" : "border-light-grey border-t-primary-red"}`} />
+            <div className={`h-10 w-10 animate-spin rounded-full border-4 ${isDark ? "border-dark-border border-t-primary-blue" : "border-light-grey border-t-primary-blue"}`} />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -226,7 +226,7 @@ export default function CommunityModerationPage() {
                     className={`flex-shrink-0 flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:opacity-50 ${
                       pendingDeleteId === post.id
                         ? "border-red-600 bg-red-600 text-white"
-                        : "border-primary-red/30 bg-primary-red/5 text-primary-red hover:bg-primary-red hover:text-pure-white"
+                        : "border-primary-blue/30 bg-primary-blue/5 text-primary-blue hover:bg-primary-blue hover:text-pure-white"
                     }`}
                   >
                     {deleting === post.id ? (
@@ -248,7 +248,7 @@ export default function CommunityModerationPage() {
       {/* Load more */}
       {hasMore && !loading && (
         <button type="button" onClick={() => fetchPosts(page + 1, sort, false)}
-          className="w-full py-3 rounded-2xl border border-primary-red/30 text-sm font-semibold text-primary-red hover:bg-primary-red hover:text-pure-white transition">
+          className="w-full py-3 rounded-2xl border border-primary-blue/30 text-sm font-semibold text-primary-blue hover:bg-primary-blue hover:text-pure-white transition">
           Load more
         </button>
       )}

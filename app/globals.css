@@ -1,43 +1,50 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
-  --background: #f8f9fa;
-  --foreground: #4e4b4b;
+  --background: #f0f4ff;
+  --foreground: #1e293b;
 }
 
 /* Dark mode variables */
 .dark {
-  --background: #1a1a2e;
-  --foreground: #e8e8e8;
+  --background: #0f172a;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
-  --color-primary-red: #ed1c24;
-  --color-light-red: #fcc6c6;
-  --color-dark-charcoal: #4e4b4b;
-  --color-light-grey: #bfbfbf;
-  --color-very-light-grey: #f8f9fa;
-  --color-inactive-light-grey: #f0f0f0;
+  /* ── Pop Up brand palette ──────────────────────────────── */
+  --color-primary-blue: #1d4ed8;      /* main CTA – replaces primary-blue  */
+  --color-primary-blue-hover: #1e40af;
+  --color-light-blue: #dbeafe;        /* tint bg – replaces light-blue     */
+  --color-navy: #1e3a8a;              /* deep navy for emphasis            */
+  --color-teal: #0891b2;              /* secondary teal accent             */
+  --color-cyan-accent: #06b6d4;       /* cyan highlight                    */
+
+  /* Neutral palette */
+  --color-dark-charcoal: #1e293b;
+  --color-light-grey: #cbd5e1;
+  --color-very-light-grey: #f8fafc;
+  --color-inactive-light-grey: #f1f5f9;
   --color-pure-white: #ffffff;
-  --color-status-green: #56e40a;
-  --color-status-warning-1: #ffd54f;
-  --color-status-warning-2: #ff9f1c;
-  --color-status-danger: #d7263d;
-  
-  /* Alert notification colors */
+
+  /* Flood status colors — keep red for safety semantics */
+  --color-status-green: #22c55e;
+  --color-status-warning-1: #fbbf24;
+  --color-status-warning-2: #f97316;
+  --color-status-danger: #ef4444;
+
+  /* Alert / notification */
   --color-light-purple: #e9d5ff;
   --color-purple: #a855f7;
-  --color-light-blue: #dbeafe;
-  --color-blue: #3b82f6;
-  
-  /* Dark mode colors */
-  --color-dark-bg: #1a1a2e;
-  --color-dark-card: #16213e;
-  --color-dark-border: #2d3a5a;
-  --color-dark-text: #e8e8e8;
-  --color-dark-text-secondary: #a0a0a0;
-  --color-dark-text-muted: #6b7280;
-  
+
+  /* Dark mode surfaces */
+  --color-dark-bg: #0f172a;
+  --color-dark-card: #1e293b;
+  --color-dark-border: #334155;
+  --color-dark-text: #e2e8f0;
+  --color-dark-text-secondary: #94a3b8;
+  --color-dark-text-muted: #64748b;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -49,7 +56,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), "Inter", Arial, Helvetica, sans-serif;
   min-height: 100vh;
   transition: background-color 0.3s ease, color 0.3s ease;
 }

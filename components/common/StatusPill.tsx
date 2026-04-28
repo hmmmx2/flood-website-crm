@@ -1,4 +1,4 @@
-import clsx from "clsx";
+﻿import clsx from "clsx";
 
 import { NodeStatus, statusToneMap } from "@/lib/data";
 
@@ -28,10 +28,10 @@ const variantToneMap = {
     dot: "bg-status-warning-2",
   },
   red: {
-    bg: "bg-light-red",
-    text: "text-primary-red",
-    border: "border-primary-red/30",
-    dot: "bg-primary-red",
+    bg: "bg-light-blue",
+    text: "text-primary-blue",
+    border: "border-primary-blue/30",
+    dot: "bg-primary-blue",
   },
 };
 

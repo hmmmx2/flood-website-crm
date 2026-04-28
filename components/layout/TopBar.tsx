@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect } from "react";
 
@@ -154,8 +154,8 @@ function ThemeToggle() {
       onClick={toggleTheme}
       className={`relative flex h-10 w-10 sm:h-11 sm:w-[70px] items-center justify-center sm:justify-start rounded-full border transition-all duration-300 ${
         isDark
-          ? "border-dark-border bg-dark-card hover:border-primary-red"
-          : "border-light-grey bg-very-light-grey/50 hover:border-primary-red"
+          ? "border-dark-border bg-dark-card hover:border-primary-blue"
+          : "border-light-grey bg-very-light-grey/50 hover:border-primary-blue"
       }`}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
@@ -207,6 +207,8 @@ export default function TopBar({
 }: TopBarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  // TODO: Connect to real unread alerts API
+  const [unreadAlertCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { isDark } = useTheme();
   const { user, logout } = useAuth();
@@ -256,7 +258,7 @@ export default function TopBar({
               onClick={onToggleSidebar}
               aria-pressed={!isSidebarCollapsed}
               aria-label="Toggle sidebar"
-              className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-red transition hover:bg-light-red/40"
+              className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-blue transition hover:bg-light-blue/40"
             >
               <HamburgerIcon className="h-6 w-6" />
             </button>
@@ -267,8 +269,8 @@ export default function TopBar({
               onClick={onToggleMobileMenu}
               aria-pressed={isMobileMenuOpen}
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-              className={`flex md:hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-primary-red transition hover:bg-light-red/40 ${
-                isDark ? "border-dark-border" : "border-light-red"
+              className={`flex md:hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-primary-blue transition hover:bg-light-blue/40 ${
+                isDark ? "border-dark-border" : "border-light-blue"
               }`}
             >
               {isMobileMenuOpen ? (
@@ -289,7 +291,7 @@ export default function TopBar({
             <div className="ml-4 md:ml-0 flex items-center gap-2 sm:gap-3 shrink-0">
               <Image
                 src={logo}
-                alt="Flood Management logo"
+                alt="Pop Up Advertising And Information Enterprise"
                 width={40}
                 height={40}
                 priority
@@ -302,7 +304,7 @@ export default function TopBar({
                 >
                   Flood Management
                 </p>
-                <p className="text-xs uppercase tracking-wide text-primary-red">
+                <p className="text-xs uppercase tracking-wide text-primary-blue">
                   IoT Command Center
                 </p>
               </div>
@@ -315,8 +317,8 @@ export default function TopBar({
             onClick={() => setIsSearchOpen(true)}
             className={`flex flex-1 min-w-0 max-w-md items-center gap-2 sm:gap-3 rounded-full border px-2 sm:px-4 py-2.5 text-sm transition shrink ${
               isDark
-                ? "border-dark-border bg-dark-bg/50 text-dark-text-muted hover:border-primary-red/50 hover:bg-dark-card"
-                : "border-light-grey bg-very-light-grey/50 text-dark-charcoal/50 hover:border-primary-red/50 hover:bg-pure-white hover:shadow-sm"
+                ? "border-dark-border bg-dark-bg/50 text-dark-text-muted hover:border-primary-blue/50 hover:bg-dark-card"
+                : "border-light-grey bg-very-light-grey/50 text-dark-charcoal/50 hover:border-primary-blue/50 hover:bg-pure-white hover:shadow-sm"
             }`}
           >
             <SearchIcon className="h-5 w-5 shrink-0" />
@@ -341,23 +343,24 @@ export default function TopBar({
               href="/alerts"
               className={`relative flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full border transition ${
                 isDark
-                  ? "border-dark-border text-dark-text hover:text-primary-red hover:border-primary-red"
-                  : "border-light-grey text-dark-charcoal hover:text-primary-red hover:border-primary-red"
+                  ? "border-dark-border text-dark-text hover:text-primary-blue hover:border-primary-blue"
+                  : "border-light-grey text-dark-charcoal hover:text-primary-blue hover:border-primary-blue"
               }`}
               aria-label="Notifications"
             >
               <NotificationIcon className="h-5 w-5" />
-              {/* Notification badge */}
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary-red text-[10px] font-bold text-pure-white">
-                3
-              </span>
+              {unreadAlertCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary-blue text-[10px] font-bold text-pure-white">
+                  {unreadAlertCount}
+                </span>
+              )}
             </Link>
             <Link
               href="/settings"
               className={`hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition ${
                 isDark
-                  ? "border-dark-border text-dark-text hover:text-primary-red hover:border-primary-red"
-                  : "border-light-grey text-dark-charcoal hover:text-primary-red hover:border-primary-red"
+                  ? "border-dark-border text-dark-text hover:text-primary-blue hover:border-primary-blue"
+                  : "border-light-grey text-dark-charcoal hover:text-primary-blue hover:border-primary-blue"
               }`}
               aria-label="Settings"
             >
@@ -369,15 +372,29 @@ export default function TopBar({
               <button
                 type="button"
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className={`relative flex shrink-0 items-center gap-2 rounded-xl border border-primary-red px-2 sm:px-3 py-1.5 transition ${
+                className={`relative flex shrink-0 items-center gap-2 rounded-xl border border-primary-blue px-2 sm:px-3 py-1.5 transition ${
                   isDark
-                    ? "bg-dark-card hover:bg-primary-red/20"
-                    : "bg-pure-white hover:bg-light-red/20"
+                    ? "bg-dark-card hover:bg-primary-blue/10"
+                    : "bg-pure-white hover:bg-light-blue/30"
                 }`}
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary-red bg-primary-red text-xs font-bold text-pure-white">
-                  {getUserInitials()}
-                </div>
+                {/* Avatar: photo if available, else initials */}
+                {user?.avatarUrl ? (
+                  <div className="h-8 w-8 rounded-lg border border-primary-blue overflow-hidden flex-shrink-0">
+                    <Image
+                      src={user.avatarUrl}
+                      alt={user.name || "Profile"}
+                      width={32}
+                      height={32}
+                      className="h-full w-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary-blue bg-primary-blue text-xs font-bold text-pure-white flex-shrink-0">
+                    {getUserInitials()}
+                  </div>
+                )}
                 <div className="hidden sm:block text-left">
                   <p
                     className={`text-xs font-semibold leading-tight ${

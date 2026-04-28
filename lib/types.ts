@@ -4,6 +4,10 @@
 export interface NodeData {
   _id: string;
   node_id: string;
+  name?: string;       // human-readable name
+  area?: string;       // e.g. "Kuching"
+  location?: string;   // e.g. "Sungai Sarawak"
+  state?: string;      // e.g. "Sarawak"
   latitude: number;
   longitude: number;
   current_level: number; // 0 = 0ft, 1 = 1ft, 2 = 2ft, 3 = 3ft

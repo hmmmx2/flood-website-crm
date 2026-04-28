@@ -15,7 +15,6 @@ import { javaFetch, type JavaSensorDto } from "@/lib/javaApi";
 import { withCache, CACHE_TTL } from "@/lib/redis";
 import type { NodeData } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
@@ -32,6 +31,10 @@ export async function GET(req: NextRequest) {
         return sensors.map((s) => ({
           _id: s.id,
           node_id: s.nodeId,
+          name: s.name,
+          area: s.area,
+          location: s.location,
+          state: s.state,
           latitude: s.coordinate[1],
           longitude: s.coordinate[0],
           current_level: s.currentLevel ?? 0,

@@ -1,6 +1,6 @@
 import { Page } from '@playwright/test';
 
-const JAVA_API = 'http://localhost:3001';
+const JAVA_API = 'http://localhost:4002';
 
 /**
  * Programmatic login — calls the Java API directly via page.request (no

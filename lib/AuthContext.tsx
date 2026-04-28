@@ -32,6 +32,7 @@ export type User = {
   department?: string;    // mapped from locationLabel
   role: string;           // 'admin' | 'operator' | 'viewer' etc.
   status: "active" | "inactive";
+  avatarUrl?: string;
   twoFactorEnabled?: boolean;
   passwordLastChanged?: string;
   notifications?: boolean;
@@ -70,10 +71,11 @@ type AuthContextType = {
 // In the browser, CRM calls its own /api/* BFF routes.
 // Direct Java calls happen only for auth (no BFF for auth yet).
 
+/** flood-service-crm listens on port 4002 locally (see application.yml PORT). */
 const JAVA_API =
   typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_JAVA_API_URL || "http://localhost:3001")
-    : (process.env.JAVA_API_URL || "http://localhost:3001");
+    ? (process.env.NEXT_PUBLIC_JAVA_API_URL || "http://localhost:4002")
+    : (process.env.JAVA_API_URL || process.env.NEXT_PUBLIC_JAVA_API_URL || "http://localhost:4002");
 
 // ── Token storage ─────────────────────────────────────────────
 
@@ -139,6 +141,7 @@ function toLocalUser(javaUser: JavaUser): User {
     email: javaUser.email,
     role: capitalize(javaUser.role ?? "customer"),
     status: "active",
+    avatarUrl: javaUser.avatarUrl ?? undefined,
     twoFactorEnabled: false,
     passwordLastChanged: new Date().toISOString(),
     notifications: true,
@@ -435,10 +438,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (newPassword === currentPassword) return { success: false, error: "New password must differ from current" };
 
     try {
-      // Use the reset-password flow: verify with forgot-password, then reset
-      // For now, hit the reset-password endpoint directly (admin change)
-      await javaPost("/auth/reset-password", {
-        email: user.email,
+      await javaPost("/auth/change-password", {
+        currentPassword,
         newPassword,
       }, accessToken ?? undefined);
 
@@ -454,6 +455,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, accessToken]);
 
+  // TODO: UI-only until TOTP backend is implemented — currently just toggles the local flag
   const toggleTwoFactor = useCallback(async (): Promise<{ success: boolean; enabled: boolean }> => {
     if (!user) return { success: false, enabled: false };
     const newValue = !user.twoFactorEnabled;

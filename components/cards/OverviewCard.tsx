@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import clsx from "clsx";
 
@@ -26,7 +26,7 @@ export default function OverviewCard({
 
   const trendColor =
     trend?.direction === "down"
-      ? "text-primary-red"
+      ? "text-primary-blue"
       : trend?.direction === "flat"
         ? isDark
           ? "text-dark-text-muted"
@@ -76,7 +76,7 @@ export default function OverviewCard({
         </p>
       )}
       {subLabel && (
-        <p className="mt-1 text-sm font-semibold text-primary-red">{subLabel}</p>
+        <p className="mt-1 text-sm font-semibold text-primary-blue">{subLabel}</p>
       )}
     </article>
   );
