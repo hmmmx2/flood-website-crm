@@ -64,7 +64,7 @@ function readingTime(body: string): string {
 
 function categoryColor(cat: string): { bg: string; text: string } {
   switch (cat) {
-    case "Flood Alert": return { bg: "bg-red-100 dark:bg-red-900/30",    text: "text-red-700 dark:text-red-400" };
+    case "Flood Alert": return { bg: "bg-blue-100 dark:bg-blue-900/30",    text: "text-blue-700 dark:text-blue-400" };
     case "Safety Tips": return { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-400" };
     case "Community":   return { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-400" };
     case "Updates":     return { bg: "bg-blue-100 dark:bg-blue-900/30",   text: "text-blue-700 dark:text-blue-400" };
