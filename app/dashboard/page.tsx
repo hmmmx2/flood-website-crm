@@ -31,6 +31,40 @@ interface AnalyticsData {
   recentEvents: { title: string; timestamp: string; type: string }[];
 }
 
+// ── SSE support ───────────────────────────────────────────────────────────────
+
+type SseSensorDto = {
+  id: string;
+  nodeId: string;
+  name?: string;
+  area: string;
+  location: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+  currentLevel: 0 | 1 | 2 | 3;
+  status: "active" | "warning" | "critical" | "inactive";
+  isDead?: boolean;
+  lastUpdated: string;
+};
+
+function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
+  return {
+    _id: dto.id,
+    node_id: dto.nodeId,
+    name: dto.name ?? "",
+    area: dto.area,
+    location: dto.location,
+    state: dto.state,
+    latitude: dto.latitude,
+    longitude: dto.longitude,
+    current_level: dto.currentLevel,
+    is_dead: dto.isDead ?? dto.status === "inactive",
+    last_updated: dto.lastUpdated,
+    created_at: prev?.created_at ?? dto.lastUpdated,
+  };
+}
+
 const monthLabels = Array.from({ length: 5 }, (_, i) => {
   const d = new Date();
   d.setMonth(d.getMonth() - (4 - i));
@@ -45,7 +79,7 @@ const weekLabels = Array.from({ length: 7 }, (_, i) => {
 
 // ── Flood Risk Analysis helpers (inspired by FYP-RainfallView XGBoost model) ──
 type RiskScale = "hourly" | "daily" | "weekly" | "monthly";
-const RISK_COLORS: Record<number, string> = { 0: "#56E40A", 1: "#FFD54F", 2: "#FF9F1C", 3: "#ED1C24" };
+const RISK_COLORS: Record<number, string> = { 0: "#22c55e", 1: "#60a5fa", 2: "#1d4ed8", 3: "#1e3a8a" };
 const RISK_LABELS = ["Normal", "Alert", "Warning", "Critical"];
 const RISK_FT = ["0ft", "1ft", "2ft", "3ft"];
 
@@ -74,7 +108,7 @@ export default function DashboardPage() {
 
   // Read global settings from CRM Settings
   const [liveDataEnabled, setLiveDataEnabled] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [refreshInterval, setRefreshInterval] = useState(1000);
 
   useEffect(() => {
     const loadSettings = () => {
@@ -82,7 +116,7 @@ export default function DashboardPage() {
       if (saved) {
         const settings = JSON.parse(saved);
         setLiveDataEnabled(settings.liveDataEnabled ?? true);
-        setRefreshInterval(settings.refreshInterval ?? 30000);
+        setRefreshInterval(settings.refreshInterval ?? 1000);
       }
     };
     loadSettings();
@@ -134,18 +168,34 @@ export default function DashboardPage() {
       });
   }, [accessToken, silentRefresh]);
 
-  // Initial fetch + auto-refresh — re-runs when token arrives or settings change
+  // Initial fetch
   useEffect(() => {
     if (!accessToken) return;
     fetchNodes();
-    let interval: NodeJS.Timeout | null = null;
-    if (liveDataEnabled) {
-      interval = setInterval(fetchNodes, refreshInterval);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [accessToken, fetchNodes, liveDataEnabled, refreshInterval]);
+  }, [accessToken, fetchNodes]);
+
+  // SSE real-time updates (replaces setInterval polling)
+  useEffect(() => {
+    if (!accessToken || !liveDataEnabled) return;
+
+    const es = new EventSource("/api/sse/sensors");
+    es.addEventListener("sensor-update", (e: MessageEvent) => {
+      try {
+        const dto: SseSensorDto = JSON.parse(e.data as string);
+        setNodes(prev => {
+          const idx = prev.findIndex(n => n._id === dto.id);
+          const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
+          if (idx === -1) return [...prev, updated];
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        });
+        setLastFetch(new Date());
+      } catch { /* malformed event — ignore */ }
+    });
+
+    return () => es.close();
+  }, [accessToken, liveDataEnabled]);
 
   // Statistics from real-time data
   const stats = useMemo(() => {
@@ -903,7 +953,7 @@ export default function DashboardPage() {
                 <Bar
                   dataKey="critical"
                   name="Critical Incidents"
-                  fill="#ED1C24"
+                  fill="#1e3a8a"
                   radius={[0, 6, 6, 0]}
                 />
               </BarChart>

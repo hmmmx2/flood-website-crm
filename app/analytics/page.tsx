@@ -41,20 +41,22 @@ interface AnalyticsData {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const LEVEL_TO_METERS: Record<number, number> = { 0: 0.0, 1: 1.0, 2: 2.5, 3: 4.0 };
 
+// Blue-toned severity palette — aligned with primary-blue (#1d4ed8) brand color.
+// Green is retained for level 0 (universally "safe"); levels 1-3 use blue shades.
 function levelColor(level: number): string {
-  if (level >= 3) return "#ED1C24";
-  if (level === 2) return "#FF9F1C";
-  if (level === 1) return "#FFD54F";
-  return "#56E40A";
+  if (level >= 3) return "#1e3a8a"; // dark navy   — Critical
+  if (level === 2) return "#1d4ed8"; // primary blue — Warning
+  if (level === 1) return "#60a5fa"; // blue-400     — Alert
+  return "#22c55e";                  // green        — Safe/Dry
 }
 
-const PIE_COLORS = ["#ED1C24", "#FF9F1C", "#56E40A", "#BFBFBF"];
+const PIE_COLORS = ["#1e3a8a", "#1d4ed8", "#22c55e", "#BFBFBF"];
 
 const bubbleLegendData = [
-  { value: "Safe (0 ft)",      color: "#56E40A" },
-  { value: "Warning L1 (1 ft)", color: "#FFD54F" },
-  { value: "Warning L2 (2 ft)", color: "#FF9F1C" },
-  { value: "Danger (3+ ft)",   color: "#ED1C24" },
+  { value: "Safe (0 ft)",       color: "#22c55e" },
+  { value: "Warning L1 (1 ft)", color: "#60a5fa" },
+  { value: "Warning L2 (2 ft)", color: "#1d4ed8" },
+  { value: "Danger (3+ ft)",    color: "#1e3a8a" },
 ];
 
 // Last 7 day labels
@@ -66,7 +68,7 @@ const weekLabels = Array.from({ length: 7 }, (_, i) => {
 
 // ── Flood Risk Analysis helpers (inspired by FYP-RainfallView XGBoost model) ──
 type RiskScale = "hourly" | "daily" | "weekly" | "monthly";
-const RISK_COLORS: Record<number, string> = { 0: "#56E40A", 1: "#FFD54F", 2: "#FF9F1C", 3: "#ED1C24" };
+const RISK_COLORS: Record<number, string> = { 0: "#22c55e", 1: "#60a5fa", 2: "#1d4ed8", 3: "#1e3a8a" };
 const RISK_LABELS = ["Normal", "Alert", "Warning", "Critical"];
 const RISK_FT     = ["0ft", "1ft", "2ft", "3ft"];
 

@@ -7,6 +7,40 @@ import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 import { NodeData } from "@/lib/types";
 
+// ── SSE support ───────────────────────────────────────────────────────────────
+
+type SseSensorDto = {
+  id: string;
+  nodeId: string;
+  name?: string;
+  area: string;
+  location: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+  currentLevel: 0 | 1 | 2 | 3;
+  status: "active" | "warning" | "critical" | "inactive";
+  isDead?: boolean;
+  lastUpdated: string;
+};
+
+function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
+  return {
+    _id: dto.id,
+    node_id: dto.nodeId,
+    name: dto.name ?? "",
+    area: dto.area,
+    location: dto.location,
+    state: dto.state,
+    latitude: dto.latitude,
+    longitude: dto.longitude,
+    current_level: dto.currentLevel,
+    is_dead: dto.isDead ?? dto.status === "inactive",
+    last_updated: dto.lastUpdated,
+    created_at: prev?.created_at ?? dto.lastUpdated,
+  };
+}
+
 // ── icon helpers ────────────────────────────────────────────────────────────
 
 function RefreshIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -246,7 +280,7 @@ export default function FloodMapPage() {
 
   // ── settings ───────────────────────────────────────────────────────────────
   const [autoRefresh, setAutoRefresh]       = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [refreshInterval, setRefreshInterval] = useState(1000);
 
   useEffect(() => {
     const load = () => {
@@ -254,7 +288,7 @@ export default function FloodMapPage() {
       if (saved) {
         const s = JSON.parse(saved);
         setAutoRefresh(s.liveDataEnabled ?? true);
-        setRefreshInterval(s.refreshInterval ?? 30000);
+        setRefreshInterval(s.refreshInterval ?? 1000);
       }
     };
     load();
@@ -285,12 +319,34 @@ export default function FloodMapPage() {
     }
   }, [accessToken, silentRefresh]);
 
+  // Initial fetch
   useEffect(() => {
     if (!accessToken) return;
     fetchNodes();
-    const id = autoRefresh ? setInterval(fetchNodes, refreshInterval) : null;
-    return () => { if (id) clearInterval(id); };
-  }, [accessToken, fetchNodes, autoRefresh, refreshInterval]);
+  }, [accessToken, fetchNodes]);
+
+  // SSE real-time updates (replaces setInterval polling)
+  useEffect(() => {
+    if (!accessToken || !autoRefresh) return;
+
+    const es = new EventSource("/api/sse/sensors");
+    es.addEventListener("sensor-update", (e: MessageEvent) => {
+      try {
+        const dto: SseSensorDto = JSON.parse(e.data as string);
+        setNodes(prev => {
+          const idx = prev.findIndex(n => n._id === dto.id);
+          const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
+          if (idx === -1) return [...prev, updated];
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        });
+        setLastFetch(new Date());
+      } catch { /* malformed event — ignore */ }
+    });
+
+    return () => es.close();
+  }, [accessToken, autoRefresh]);
 
   // ── reusable classnames ────────────────────────────────────────────────────
   const card = `rounded-3xl border p-5 shadow-sm transition-colors ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`;

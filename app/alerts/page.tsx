@@ -7,6 +7,40 @@ import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 import { NodeData, getStatusLabel } from "@/lib/types";
 
+// ── SSE support ───────────────────────────────────────────────────────────────
+
+type SseSensorDto = {
+  id: string;
+  nodeId: string;
+  name?: string;
+  area: string;
+  location: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+  currentLevel: 0 | 1 | 2 | 3;
+  status: "active" | "warning" | "critical" | "inactive";
+  isDead?: boolean;
+  lastUpdated: string;
+};
+
+function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
+  return {
+    _id: dto.id,
+    node_id: dto.nodeId,
+    name: dto.name ?? "",
+    area: dto.area,
+    location: dto.location,
+    state: dto.state,
+    latitude: dto.latitude,
+    longitude: dto.longitude,
+    current_level: dto.currentLevel,
+    is_dead: dto.isDead ?? dto.status === "inactive",
+    last_updated: dto.lastUpdated,
+    created_at: prev?.created_at ?? dto.lastUpdated,
+  };
+}
+
 type AlertType = "DANGER" | "WARNING" | "INACTIVE" | "NEW NODE" | "NORMAL";
 
 type GeneratedAlert = {
@@ -404,7 +438,7 @@ export default function AlertsPage() {
 
   // Read global settings from CRM Settings
   const [isLive, setIsLive] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [refreshInterval, setRefreshInterval] = useState(1000);
 
   useEffect(() => {
     const loadSettings = () => {
@@ -412,7 +446,7 @@ export default function AlertsPage() {
       if (saved) {
         const settings = JSON.parse(saved);
         setIsLive(settings.liveDataEnabled ?? true);
-        setRefreshInterval(settings.refreshInterval ?? 30000);
+        setRefreshInterval(settings.refreshInterval ?? 1000);
       }
     };
     loadSettings();
@@ -450,22 +484,34 @@ export default function AlertsPage() {
     }
   }, [accessToken, silentRefresh]);
 
-  // Initial fetch and polling — re-runs when token arrives
+  // Initial fetch
   useEffect(() => {
     if (!accessToken) return;
     fetchNodes();
   }, [accessToken, fetchNodes]);
 
+  // SSE real-time updates (replaces setInterval polling)
   useEffect(() => {
-    if (!accessToken) return;
-    let interval: NodeJS.Timeout | null = null;
-    if (isLive) {
-      interval = setInterval(fetchNodes, refreshInterval);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [accessToken, fetchNodes, isLive, refreshInterval]);
+    if (!accessToken || !isLive) return;
+
+    const es = new EventSource("/api/sse/sensors");
+    es.addEventListener("sensor-update", (e: MessageEvent) => {
+      try {
+        const dto: SseSensorDto = JSON.parse(e.data as string);
+        setNodes(prev => {
+          const idx = prev.findIndex(n => n._id === dto.id);
+          const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
+          if (idx === -1) return [...prev, updated];
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        });
+        setLastFetched(new Date());
+      } catch { /* malformed event — ignore */ }
+    });
+
+    return () => es.close();
+  }, [accessToken, isLive]);
 
   // Generate alerts from nodes
   const alerts: GeneratedAlert[] = useMemo(() => {

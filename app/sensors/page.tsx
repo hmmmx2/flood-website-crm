@@ -50,6 +50,40 @@ function RefreshIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+// ── SSE support ───────────────────────────────────────────────────────────────
+
+type SseSensorDto = {
+  id: string;
+  nodeId: string;
+  name?: string;
+  area: string;
+  location: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+  currentLevel: 0 | 1 | 2 | 3;
+  status: "active" | "warning" | "critical" | "inactive";
+  isDead?: boolean;
+  lastUpdated: string;
+};
+
+function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
+  return {
+    _id: dto.id,
+    node_id: dto.nodeId,
+    name: dto.name ?? "",
+    area: dto.area,
+    location: dto.location,
+    state: dto.state,
+    latitude: dto.latitude,
+    longitude: dto.longitude,
+    current_level: dto.currentLevel,
+    is_dead: dto.isDead ?? dto.status === "inactive",
+    last_updated: dto.lastUpdated,
+    created_at: prev?.created_at ?? dto.lastUpdated,
+  };
+}
+
 // Transform NodeData for table display
 interface SensorTableRow {
   id: string;
@@ -98,7 +132,7 @@ export default function SensorsPage() {
 
   // Read global settings from CRM Settings
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [refreshInterval, setRefreshInterval] = useState(1000);
 
   useEffect(() => {
     const loadSettings = () => {
@@ -106,7 +140,7 @@ export default function SensorsPage() {
       if (saved) {
         const settings = JSON.parse(saved);
         setAutoRefresh(settings.liveDataEnabled ?? true);
-        setRefreshInterval(settings.refreshInterval ?? 30000);
+        setRefreshInterval(settings.refreshInterval ?? 1000);
       }
     };
     loadSettings();
@@ -142,20 +176,34 @@ export default function SensorsPage() {
     }
   }, [accessToken, silentRefresh]);
 
-  // Initial fetch and auto-refresh
+  // Initial fetch
   useEffect(() => {
     if (!accessToken) return;
     fetchNodes();
+  }, [accessToken, fetchNodes]);
 
-    let interval: NodeJS.Timeout | null = null;
-    if (autoRefresh) {
-      interval = setInterval(fetchNodes, refreshInterval);
-    }
+  // SSE real-time updates (replaces setInterval polling)
+  useEffect(() => {
+    if (!accessToken || !autoRefresh) return;
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [accessToken, fetchNodes, autoRefresh, refreshInterval]);
+    const es = new EventSource("/api/sse/sensors");
+    es.addEventListener("sensor-update", (e: MessageEvent) => {
+      try {
+        const dto: SseSensorDto = JSON.parse(e.data as string);
+        setNodes(prev => {
+          const idx = prev.findIndex(n => n._id === dto.id);
+          const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
+          if (idx === -1) return [...prev, updated];
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        });
+        setLastFetch(new Date());
+      } catch { /* malformed event — ignore */ }
+    });
+
+    return () => es.close();
+  }, [accessToken, autoRefresh]);
 
   // Transform nodes to table rows
   const tableRows: SensorTableRow[] = useMemo(() => {

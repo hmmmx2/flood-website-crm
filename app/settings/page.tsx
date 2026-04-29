@@ -141,7 +141,7 @@ const defaultSettings: CRMSettings = {
   weeklyReport: true,
   alertSound: "default",
   liveDataEnabled: true,
-  refreshInterval: 30000,
+  refreshInterval: 1000,
   dataRetentionDays: 365,
   autoArchive: true,
   exportFormat: "csv",
@@ -572,6 +572,7 @@ export default function SettingsPage() {
                       }
 
                       const PRESETS = [
+                        { label: "1s",  val: 1 },
                         { label: "5s",  val: 5 },
                         { label: "10s", val: 10 },
                         { label: "30s", val: 30 },
