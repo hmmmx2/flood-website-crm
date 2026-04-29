@@ -359,7 +359,7 @@ export default function RolesPage() {
                 <option value="admin">Admin</option>
               </select>
             </div>
-            {formError && <p className="text-xs text-primary-blue">{formError}</p>}
+            {formError && <p className="text-xs text-red-600">{formError}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setShowAddModal(false)} className={`rounded-xl px-4 py-2 text-sm font-medium ${isDark ? "bg-dark-bg text-dark-text hover:bg-dark-border" : "bg-very-light-grey text-dark-charcoal hover:bg-light-grey"}`}>Cancel</button>
               <button type="submit" disabled={isSaving} className="rounded-xl bg-primary-blue px-4 py-2 text-sm font-semibold text-white hover:bg-primary-blue/90 disabled:opacity-50">
@@ -395,7 +395,7 @@ export default function RolesPage() {
                 <option value="admin">Admin</option>
               </select>
             </div>
-            {formError && <p className="text-xs text-primary-blue">{formError}</p>}
+            {formError && <p className="text-xs text-red-600">{formError}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setEditUser(null)} className={`rounded-xl px-4 py-2 text-sm font-medium ${isDark ? "bg-dark-bg text-dark-text hover:bg-dark-border" : "bg-very-light-grey text-dark-charcoal hover:bg-light-grey"}`}>Cancel</button>
               <button type="submit" disabled={isSaving} className="rounded-xl bg-primary-blue px-4 py-2 text-sm font-semibold text-white hover:bg-primary-blue/90 disabled:opacity-50">

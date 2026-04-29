@@ -37,13 +37,18 @@
   --color-light-purple: #e9d5ff;
   --color-purple: #a855f7;
 
+  /* Semantic reds — Critical / destructive actions */
+  --color-primary-red: #dc2626;
+
   /* Dark mode surfaces */
-  --color-dark-bg: #0f172a;
-  --color-dark-card: #1e293b;
-  --color-dark-border: #334155;
-  --color-dark-text: #e2e8f0;
-  --color-dark-text-secondary: #94a3b8;
-  --color-dark-text-muted: #64748b;
+  --color-dark-bg: #060d1a;
+  --color-dark-card: #0d1f3d;
+  --color-dark-card-alt: #0f2347;
+  --color-dark-border: #1e3a5f;
+  --color-dark-text: #e8edf5;
+  --color-dark-text-secondary: #8899b8;
+  --color-dark-text-muted: #8899b8;
+  --color-dark-input-bg: #0a1628;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
