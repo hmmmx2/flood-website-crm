@@ -10,22 +10,33 @@
 //                   Local:  http://localhost:4002
 // ─────────────────────────────────────────────────────────────
 
-const JAVA_API_URL =
+// Normalise the URL: if the env var was set without a protocol (e.g. in
+// Vercel's dashboard without "https://"), prefix it automatically so that
+// Node.js fetch does not throw "Failed to parse URL".
+function normaliseUrl(raw: string): string {
+  if (!raw || raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  return `https://${raw}`;
+}
+
+const JAVA_API_URL = normaliseUrl(
   process.env.JAVA_API_URL ||
   process.env.NEXT_PUBLIC_JAVA_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:4002";
+  "http://localhost:4002"
+);
 
 type FetchOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   token?: string;          // Bearer token from the incoming CRM request
   revalidate?: number;     // Next.js ISR revalidation in seconds (default: 0)
+  /** Hard timeout in ms. Defaults to 10 s — prevents hanging on Railway cold starts. */
+  timeoutMs?: number;
 };
 
 export async function javaFetch<T>(
   path: string,
-  { method = "GET", body, token, revalidate = 0 }: FetchOptions = {}
+  { method = "GET", body, token, revalidate = 0, timeoutMs = 10_000 }: FetchOptions = {}
 ): Promise<T> {
   const url = `${JAVA_API_URL}${path}`;
 
@@ -41,8 +52,8 @@ export async function javaFetch<T>(
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    // Next.js cache control
     next: { revalidate },
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!res.ok) {
