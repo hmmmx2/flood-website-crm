@@ -68,8 +68,9 @@ type AuthContextType = {
 };
 
 // ── Java API base URL ─────────────────────────────────────────
-// In the browser, CRM calls its own /api/* BFF routes.
-// Direct Java calls happen only for auth (no BFF for auth yet).
+// Server-side API routes proxy all Java calls — the browser never needs
+// the Java URL directly. NEXT_PUBLIC_JAVA_API_URL is only kept as a
+// fallback for legacy direct calls (login form in the CRM itself).
 
 /** flood-service-crm listens on port 4002 locally (see application.yml PORT). */
 const JAVA_API =
@@ -242,12 +243,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedRefresh = localStorage.getItem(REFRESH_KEY);
     if (!storedRefresh) return null;
     try {
-      const res = await fetch(`${JAVA_API}/auth/refresh`, {
+      // Use the BFF proxy (/api/auth/refresh) so the browser never calls Java
+      // directly — avoids NEXT_PUBLIC_JAVA_API_URL dependency and CORS issues.
+      const res = await fetch("/api/auth/refresh", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken: storedRefresh }),
-        // 5-second hard timeout — prevents 3-minute hang when backend is offline
-        signal: makeSignal(5_000),
+        signal: makeSignal(10_000),
       });
       if (!res.ok) throw new Error("Refresh failed");
       const data: { accessToken: string } = await res.json();
