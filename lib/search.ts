@@ -125,8 +125,8 @@ export const searchIndex: SearchResult[] = [
   },
   {
     id: "blog",
-    title: "Community Blog",
-    description: "Read and share flood-related news and updates",
+    title: "News & Blog",
+    description: "Create and manage public news articles and featured posts",
     href: "/blog",
     category: "Community",
     icon: "blog",

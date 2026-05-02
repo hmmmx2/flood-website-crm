@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -18,7 +18,7 @@ import OverviewCard from "@/components/cards/OverviewCard";
 import StatusPill from "@/components/common/StatusPill";
 import NodeMap from "@/components/map/NodeMap";
 import { useAuth } from "@/lib/AuthContext";
-import { authFetch } from "@/lib/authFetch";
+import { authFetchJson } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 import { NodeData, getStatusLabel } from "@/lib/types";
 
@@ -134,10 +134,12 @@ export default function DashboardPage() {
     // Only show the full-page spinner on the very first load
     if (isFirstFetch.current) setIsLoading(true);
     try {
-      const response = await authFetch("/api/nodes", accessToken, silentRefresh);
-      if (!response.ok) throw new Error("Failed to fetch nodes");
-      const result = await response.json();
-      if (result.success) {
+      const result = await authFetchJson<{ success: boolean; data: NodeData[] }>(
+        "/api/nodes",
+        accessToken,
+        silentRefresh,
+      );
+      if (result.success && Array.isArray(result.data)) {
         setNodes(result.data);
         setLastFetch(new Date());
         isFirstFetch.current = false;
@@ -153,19 +155,22 @@ export default function DashboardPage() {
     }
   }, [accessToken, silentRefresh]);
 
-  // Fetch analytics (token-protected)
+  // Fetch analytics (token-protected, same BFF path as /analytics page)
   useEffect(() => {
     if (!accessToken) return;
-    authFetch("/api/analytics", accessToken, silentRefresh)
-      .then((r) => {
-        if (!r.ok) { toast.error("Failed to load analytics data"); return null; }
-        return r.json();
-      })
-      .then((d: AnalyticsData | null) => { if (d) setAnalytics(d); })
-      .catch((err) => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const d = await authFetchJson<AnalyticsData>("/api/analytics", accessToken, silentRefresh);
+        if (!cancelled) setAnalytics(d);
+      } catch (err) {
         console.error("Analytics fetch failed:", err);
-        toast.error("Failed to load analytics data.");
-      });
+        if (!cancelled) toast.error("Failed to load analytics data.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken, silentRefresh]);
 
   // Initial fetch
@@ -262,19 +267,24 @@ export default function DashboardPage() {
   useEffect(() => {
     const year = new Date().getFullYear();
     const scale = riskScale === "hourly" ? "daily" : riskScale;
-    fetch(`/api/ai-predict?scale=${scale}&year=${year}`)
-      .then(r => r.json())
-      .then(d => {
+    const ac = new AbortController();
+    fetch(`/api/ai-predict?scale=${scale}&year=${year}`, { signal: ac.signal })
+      .then((r) => r.json())
+      .then((d: { success?: boolean; data?: unknown; daily_data?: unknown }) => {
         if (d.success) {
           setAiOnline(true);
-          if (scale === "monthly") setAiData(prev => ({ ...prev, monthly: d.data }));
-          else if (scale === "weekly") setAiData(prev => ({ ...prev, weekly: d.data }));
-          else if (scale === "daily") setAiData(prev => ({ ...prev, daily: d.daily_data }));
+          if (scale === "monthly") setAiData((prev) => ({ ...prev, monthly: d.data as { month: string; level: number }[] }));
+          else if (scale === "weekly") setAiData((prev) => ({ ...prev, weekly: d.data as Record<string, number[]> }));
+          else if (scale === "daily") setAiData((prev) => ({ ...prev, daily: d.daily_data as Record<string, number[]> }));
         } else {
           setAiOnline(false);
         }
       })
-      .catch(() => setAiOnline(false));
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setAiOnline(false);
+      });
+    return () => ac.abort();
   }, [riskScale]);
 
   const hourlyRiskData = useMemo(() => {

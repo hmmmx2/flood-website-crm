@@ -1,66 +1,32 @@
-﻿"use client";
-
-import type { ComponentType, SVGProps } from "react";
+"use client";
 
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import {
-  AccountIcon,
-  AlertsIcon,
-  AnalyticsIcon,
-  BlogIcon,
-  DashboardIcon,
-  MapIcon,
-  RolesIcon,
-  SensorsIcon,
-} from "@/components/icons/NavIcons";
+import { crmNavIconMap } from "@/components/layout/crmNavIconMap";
 import { useTheme } from "@/lib/ThemeContext";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { Permission } from "@/lib/permissions";
 
 type SidebarProps = {
   isCollapsed: boolean;
 };
 
-type NavItem = {
-  label: string;
-  href: string;
-  Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  section?: "main" | "management";
-  permission: Permission;
-};
-
-const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", Icon: DashboardIcon, section: "main", permission: "dashboard.view" },
-  { label: "Sensors", href: "/sensors", Icon: SensorsIcon, section: "main", permission: "sensors.view" },
-  { label: "Flood Map", href: "/map", Icon: MapIcon, section: "main", permission: "map.view" },
-  { label: "Analytics", href: "/analytics", Icon: AnalyticsIcon, section: "main", permission: "analytics.view" },
-  { label: "Alerts", href: "/alerts", Icon: AlertsIcon, section: "main", permission: "alerts.view" },
-  { label: "Community", href: "/community", Icon: BlogIcon, section: "main", permission: "blog.view" },
-  { label: "Role Management", href: "/roles", Icon: RolesIcon, section: "management", permission: "roles.manage" },
-  { label: "Account Settings", href: "/admin", Icon: AccountIcon, section: "management", permission: "dashboard.view" },
-];
-
 export default function Sidebar({ isCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { isDark } = useTheme();
-  const { can, isAdmin } = usePermissions();
+  const { accessibleNavItems } = usePermissions();
 
-  // Filter nav items based on permissions
-  const accessibleItems = navItems.filter((item) => can(item.permission));
-  
-  const mainItems = accessibleItems.filter((item) => item.section === "main");
-  const managementItems = accessibleItems.filter((item) => item.section === "management");
+  const mainItems = accessibleNavItems.filter((item) => item.section === "main");
+  const managementItems = accessibleNavItems.filter((item) => item.section === "management");
 
-  const renderNavItem = (item: NavItem) => {
+  const renderNavItem = (item: (typeof accessibleNavItems)[number]) => {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-    const ItemIcon = item.Icon;
+    const ItemIcon = crmNavIconMap[item.iconKey];
 
     return (
       <Link
-        key={item.href}
+        key={item.href + item.label}
         href={item.href}
         className={clsx(
           "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors",
@@ -101,16 +67,13 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
           : "border-light-grey bg-pure-white"
       )}
     >
-      {/* Main navigation links */}
       <nav className="mt-4 flex flex-1 flex-col px-3">
         <div className="flex flex-col gap-2">
           {mainItems.map(renderNavItem)}
         </div>
 
-        {/* Management section - only show if there are accessible management items */}
         {managementItems.length > 0 && (
           <>
-            {/* Management section divider */}
             <div
               className={clsx(
                 "my-4 border-t",
@@ -118,7 +81,6 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
               )}
             />
 
-            {/* Management section label */}
             {!isCollapsed && (
               <p
                 className={clsx(

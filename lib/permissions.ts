@@ -13,16 +13,55 @@ export type Permission =
   | "roles.manage"
   | "users.manage"
   | "settings.manage"
-  | "blog.view";
+  | "blog.view"
+  | "blog.manage"
+  | "reports.manage";
 
-export type RoleName = 
-  | "Admin" 
-  | "Operations Manager" 
-  | "Field Technician" 
+export type RoleName =
+  | "Admin"
+  | "Operations Manager"
+  | "Field Technician"
+  | "NGO Volunteer"
   | "Viewer"
   | "Customer";
 
-// Define what each role can do
+// Canonical CRM sidebar / mobile — single source for labels, hrefs, and required permission
+export type AppNavIconKey =
+  | "dashboard"
+  | "sensors"
+  | "map"
+  | "analytics"
+  | "alerts"
+  | "community"
+  | "news"
+  | "roles"
+  | "account"
+  | "settings";
+
+export type AppNavItem = {
+  label: string;
+  href: string;
+  permission: Permission;
+  section: "main" | "management";
+  iconKey: AppNavIconKey;
+  /** If true, item is shown whenever the user is authenticated (e.g. account settings). */
+  alwaysShow?: boolean;
+};
+
+export const appNavigationItems: AppNavItem[] = [
+  { label: "Dashboard", href: "/dashboard", iconKey: "dashboard", section: "main", permission: "dashboard.view" },
+  { label: "Sensors", href: "/sensors", iconKey: "sensors", section: "main", permission: "sensors.view" },
+  { label: "Flood Map", href: "/map", iconKey: "map", section: "main", permission: "map.view" },
+  { label: "Analytics", href: "/analytics", iconKey: "analytics", section: "main", permission: "analytics.view" },
+  { label: "Alerts", href: "/alerts", iconKey: "alerts", section: "main", permission: "alerts.view" },
+  { label: "Community", href: "/community", iconKey: "community", section: "main", permission: "blog.view" },
+  { label: "News & Blog", href: "/blog", iconKey: "news", section: "main", permission: "blog.manage" },
+  { label: "Role Management", href: "/roles", iconKey: "roles", section: "management", permission: "roles.manage" },
+  { label: "Account Settings", href: "/admin", iconKey: "account", section: "management", permission: "dashboard.view", alwaysShow: true },
+  { label: "CRM Settings", href: "/settings", iconKey: "settings", section: "management", permission: "settings.manage" },
+];
+
+// Matrix: Admin, Ops, Field tech, NGO volunteer, Viewer, Customer (CRM)
 export const rolePermissions: Record<RoleName, Permission[]> = {
   Admin: ["all"],
   "Operations Manager": [
@@ -35,26 +74,37 @@ export const rolePermissions: Record<RoleName, Permission[]> = {
     "analytics.view",
     "map.view",
     "blog.view",
+    "blog.manage",
+    "reports.manage",
+    "settings.manage",
   ],
   "Field Technician": [
     "dashboard.view",
+    "sensors.manage",
     "sensors.view",
+    "sensors.export",
     "alerts.view",
     "map.view",
+    "analytics.view",
+  ],
+  "NGO Volunteer": [
+    "dashboard.view",
+    "sensors.view",
+    "map.view",
+    "analytics.view",
+    "alerts.view",
     "blog.view",
+    "blog.manage",
+    "reports.manage",
   ],
   Viewer: [
     "dashboard.view",
-    "analytics.view",
-    "blog.view",
-  ],
-  Customer: [
-    "dashboard.view",
     "sensors.view",
     "map.view",
+    "analytics.view",
     "alerts.view",
-    "blog.view",
   ],
+  Customer: [],
 };
 
 // Permission descriptions for UI
@@ -71,18 +121,19 @@ export const permissionDescriptions: Record<Permission, string> = {
   "roles.manage": "Manage user roles and permissions",
   "users.manage": "Add, edit, and remove users",
   "settings.manage": "Manage system settings",
-  "blog.view": "View and post to community flood blog",
+  "blog.view": "Moderate community posts and groups",
+  "blog.manage": "Create and manage news and blog articles",
+  "reports.manage": "Review and update incident reports",
 };
 
 // Check if a role has a specific permission
 export function hasPermission(role: string, permission: Permission): boolean {
   const rolePerms = rolePermissions[role as RoleName];
-  
+
   if (!rolePerms) return false;
-  
-  // Admin has all permissions
+
   if (rolePerms.includes("all")) return true;
-  
+
   return rolePerms.includes(permission);
 }
 
@@ -99,37 +150,35 @@ export function hasAllPermissions(role: string, permissions: Permission[]): bool
 // Get all permissions for a role
 export function getRolePermissions(role: string): Permission[] {
   const rolePerms = rolePermissions[role as RoleName];
-  
+
   if (!rolePerms) return [];
-  
-  // If role has "all" permission, return all possible permissions
+
   if (rolePerms.includes("all")) {
     return Object.keys(permissionDescriptions) as Permission[];
   }
-  
+
   return rolePerms;
 }
 
-// Navigation items with required permissions
+// Legacy shape — href + permission only (used where icon/section not needed)
 export type NavItem = {
   label: string;
   href: string;
   permission: Permission;
 };
 
-export const navigationItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", permission: "dashboard.view" },
-  { label: "Sensors", href: "/sensors", permission: "sensors.view" },
-  { label: "Flood Map", href: "/map", permission: "map.view" },
-  { label: "Analytics", href: "/analytics", permission: "analytics.view" },
-  { label: "Alerts", href: "/alerts", permission: "alerts.view" },
-  { label: "Role Management", href: "/roles", permission: "roles.manage" },
-  { label: "Community Blog", href: "/blog", permission: "blog.view" },
-];
+/** Flat list derived from `appNavigationItems` for search / simple filters */
+export const navigationItems: NavItem[] = appNavigationItems.map(({ label, href, permission }) => ({
+  label,
+  href,
+  permission,
+}));
 
 // Filter navigation items based on user role
-export function getAccessibleNavItems(role: string): NavItem[] {
-  return navigationItems.filter((item) => hasPermission(role, item.permission));
+export function getAccessibleNavItems(role: string): AppNavItem[] {
+  return appNavigationItems.filter(
+    (item) => item.alwaysShow || hasPermission(role, item.permission),
+  );
 }
 
 // Page access control
@@ -140,11 +189,11 @@ export const pagePermissions: Record<string, Permission> = {
   "/analytics": "analytics.view",
   "/alerts": "alerts.view",
   "/roles": "roles.manage",
-  "/admin": "dashboard.view", // Account settings - everyone can access their own
+  "/admin": "dashboard.view",
   "/settings": "settings.manage",
-  "/blog": "blog.view",
+  "/blog": "blog.manage",
   "/community": "blog.view",
-  "/reports": "dashboard.view",
+  "/reports": "reports.manage",
   "/broadcasts": "alerts.manage",
   "/portal": "dashboard.view",
   "/portal/community": "blog.view",
@@ -152,13 +201,12 @@ export const pagePermissions: Record<string, Permission> = {
 
 // Check if user can access a specific page
 export function canAccessPage(role: string, pathname: string): boolean {
-  // Account settings is accessible to all logged-in users
   if (pathname === "/admin") return true;
-  
+
   const requiredPermission = pagePermissions[pathname];
-  
-  if (!requiredPermission) return true; // Allow if no permission defined
-  
+
+  if (!requiredPermission) return true;
+
   return hasPermission(role, requiredPermission);
 }
 
@@ -183,3 +231,18 @@ export function canManageUsers(role: string): boolean {
   return hasPermission(role, "users.manage") || hasPermission(role, "all");
 }
 
+/** Maps JWT `role` claim (ADMIN, …) or API display/locale strings to UI {@link RoleName}. */
+const JWT_OR_API_ROLE_TO_DISPLAY: Record<string, RoleName> = {
+  ADMIN: "Admin",
+  OPERATIONS_MANAGER: "Operations Manager",
+  FIELD_TECHNICIAN: "Field Technician",
+  NGO_VOLUNTEER: "NGO Volunteer",
+  VIEWER: "Viewer",
+  CUSTOMER: "Customer",
+};
+
+export function roleFromJwtOrApiRole(raw: string | undefined | null): RoleName {
+  if (raw == null || !String(raw).trim()) return "Customer";
+  const key = String(raw).trim().toUpperCase().replace(/\s+/g, "_");
+  return JWT_OR_API_ROLE_TO_DISPLAY[key] ?? "Customer";
+}

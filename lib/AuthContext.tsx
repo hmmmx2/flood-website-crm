@@ -22,6 +22,8 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
+import { roleFromJwtOrApiRole } from "@/lib/permissions";
+
 // ── Types ─────────────────────────────────────────────────────
 
 export type User = {
@@ -140,7 +142,7 @@ function toLocalUser(javaUser: JavaUser): User {
     id: javaUser.id,
     name: javaUser.displayName || javaUser.email,
     email: javaUser.email,
-    role: capitalize(javaUser.role ?? "customer"),
+    role: roleFromJwtOrApiRole(javaUser.role ?? "CUSTOMER"),
     status: "active",
     avatarUrl: javaUser.avatarUrl ?? undefined,
     twoFactorEnabled: false,
@@ -149,11 +151,6 @@ function toLocalUser(javaUser: JavaUser): User {
     emailAlerts: true,
     smsAlerts: false,
   };
-}
-
-function capitalize(s: string): string {
-  if (!s) return s;
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
 /** Shared timeout for all direct Java API calls: 8 s for login/register, 5 s for refresh */

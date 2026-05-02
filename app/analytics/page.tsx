@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -21,6 +21,7 @@ import {
 
 import OverviewCard from "@/components/cards/OverviewCard";
 import { useAuth } from "@/lib/AuthContext";
+import { authFetchJson } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 
 // ─── Types matching AnalyticsDataDto ────────────────────────────────────────
@@ -91,9 +92,14 @@ const monthLabels = Array.from({ length: 5 }, (_, i) => {
   return d.toLocaleDateString("en-MY", { month: "short", year: "2-digit" });
 });
 
+type NodesApiResponse = {
+  success?: boolean;
+  data?: Array<{ node_id: string; latitude: number; longitude: number }>;
+};
+
 export default function AnalyticsPage() {
   const { isDark } = useTheme();
-  const { accessToken } = useAuth();
+  const { accessToken, silentRefresh } = useAuth();
 
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,50 +116,39 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (!accessToken) return;
 
-    // Fetch analytics KPI / chart data
-    fetch("/api/analytics", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-    })
-      .then((r) => {
-        if (!r.ok) { toast.error("Failed to load analytics data"); setIsLoading(false); return null; }
-        return r.json();
-      })
-      .then((d: AnalyticsData | null) => { if (d) setData(d); })
-      .catch((err) => {
-        console.error("Analytics fetch failed:", err);
-        toast.error("Failed to load analytics. Please refresh.");
-      })
-      .finally(() => setIsLoading(false));
+    let cancelled = false;
 
-    // BUG-ANAL01: Fetch real sensor GPS from /api/nodes so the bubble map uses
-    // actual coordinates instead of hardcoded fake offsets around Kuching.
-    // /api/nodes returns { success, data: NodeData[], count, timestamp }
-    fetch("/api/nodes", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-    })
-      .then((r) => {
-        if (!r.ok) return null;
-        return r.json();
-      })
-      .then((result) => {
-        if (!result) return;
-        const nodes: Array<{ node_id: string; latitude: number; longitude: number }> =
-          Array.isArray(result) ? result : (result.data ?? []);
+    (async () => {
+      setIsLoading(true);
+      try {
+        const d = await authFetchJson<AnalyticsData>("/api/analytics", accessToken, silentRefresh);
+        if (!cancelled) setData(d);
+      } catch (err) {
+        console.error("Analytics fetch failed:", err);
+        if (!cancelled) toast.error("Failed to load analytics data.");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+
+      try {
+        const result = await authFetchJson<NodesApiResponse>("/api/nodes", accessToken, silentRefresh);
+        if (cancelled || !result?.success || !Array.isArray(result.data)) return;
         const map: Record<string, { latitude: number; longitude: number }> = {};
-        nodes.forEach((n) => {
-          if (n.node_id && n.latitude != null && n.longitude != null) {
+        result.data.forEach((n) => {
+          if (n.node_id != null && n.latitude != null && n.longitude != null) {
             map[n.node_id] = { latitude: n.latitude, longitude: n.longitude };
           }
         });
         setNodeGpsMap(map);
-      })
-      .catch(() => {
-        // Silently fail — bubble map will render empty rather than show fake GPS
-        console.warn("Node GPS fetch failed; bubble map will show no data.");
-      });
-  }, [accessToken]);
+      } catch {
+        console.warn("Node GPS fetch failed; bubble map may be incomplete.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, silentRefresh]);
 
   // ── Derived chart data ───────────────────────────────────────────────────
   const lineChartData = (data?.chartData ?? Array(7).fill(0)).map((v, i) => ({

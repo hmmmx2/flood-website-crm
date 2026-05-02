@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/AuthContext";
+import { authFetchJson } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -27,7 +28,7 @@ const STATUS_STYLES: Record<string, string> = {
 // records stored before this fix continue to render correctly.
 const SEVERITY_STYLES: Record<string, string> = {
   normal:   "bg-blue-100 text-blue-800",
-  info:     "bg-blue-100 text-blue-800",   // backward-compat alias
+  info:     "bg-blue-100 text-blue-800",
   warning:  "bg-amber-100 text-amber-800",
   critical: "bg-red-100 text-red-800",
 };
@@ -40,9 +41,17 @@ function formatTime(isoString: string | null): string {
   });
 }
 
+function MapPinIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+      <path fillRule="evenodd" d="M11.54 22.351l.07.06.06-.06 8.75-8.75a7 7 0 10-9.9 0l8.75 8.75zm2.68-11.68a3 3 0 10-4.24 0 4.242 4.242 0 014.24 0z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
 export default function ReportsPage() {
   const { isDark } = useTheme();
-  const { accessToken } = useAuth();
+  const { accessToken, silentRefresh } = useAuth();
 
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,43 +60,47 @@ export default function ReportsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const fetchReports = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setFetchError(null);
     try {
-      const url = filterStatus ? `/api/reports?status=${filterStatus}` : "/api/reports";
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) throw new Error("Failed");
-      setReports(await res.json());
-      setFetchError(null);
-    } catch {
-      setFetchError("Failed to load reports. Showing previously loaded data.");
-      toast.error("Failed to load reports. Please refresh and try again.");
+      const url = filterStatus ? `/api/reports?status=${encodeURIComponent(filterStatus)}` : "/api/reports";
+      const data = await authFetchJson<Report[]>(url, accessToken, silentRefresh);
+      setReports(Array.isArray(data) ? data : []);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to load reports.";
+      setFetchError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
-  }, [accessToken, filterStatus]);
+  }, [accessToken, silentRefresh, filterStatus]);
 
-  useEffect(() => { fetchReports(); }, [fetchReports]);
+  useEffect(() => {
+    void fetchReports();
+  }, [fetchReports]);
 
   async function updateStatus(id: string, status: string) {
     if (!accessToken) return;
     setUpdatingId(id);
     try {
-      const res = await fetch(`/api/reports/${id}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+      const updated = await authFetchJson<Report>(
+        `/api/reports/${id}/status`,
+        accessToken,
+        silentRefresh,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
         },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      const updated: Report = await res.json();
-      setReports(prev => prev.map(r => r.id === id ? updated : r));
-    } catch {
-      toast.error("Failed to update report status. Please try again.");
+      );
+      setReports((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      toast.success(`Report marked as ${status}.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update status.");
     } finally {
       setUpdatingId(null);
     }
@@ -99,18 +112,17 @@ export default function ReportsPage() {
   const th    = isDark ? "bg-gray-750 text-gray-300 border-gray-700" : "bg-gray-50 text-gray-600 border-gray-200";
   const sel   = isDark ? "bg-gray-700 border-gray-600 text-gray-100" : "bg-white border-gray-300 text-gray-900";
 
-  const pending  = reports.filter(r => r.status === "pending").length;
-  const resolved = reports.filter(r => r.status === "resolved").length;
+  const pending  = reports.filter((r) => r.status === "pending").length;
+  const resolved = reports.filter((r) => r.status === "resolved").length;
 
   return (
     <div className={`min-h-screen p-6 ${bg}`}>
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Incident Reports</h1>
-            <p className={`text-sm mt-1 ${muted}`}>Review and action community flood incident submissions</p>
+            <p className={`mt-1 text-sm ${muted}`}>Review and action community flood incident submissions</p>
           </div>
           <div className="flex gap-3 text-center">
             <div className={`rounded-lg border px-4 py-2 ${card}`}>
@@ -125,16 +137,31 @@ export default function ReportsPage() {
         </div>
 
         {fetchError && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-            {fetchError}
+          <div
+            role="alert"
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>{fetchError}</span>
+              <button
+                type="button"
+                onClick={() => void fetchReports()}
+                className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Filter */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="report-status-filter" className={`sr-only ${muted}`}>
+            Filter by status
+          </label>
           <select
+            id="report-status-filter"
             value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
+            onChange={(e) => setFilterStatus(e.target.value)}
             className={`rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 ${sel}`}
           >
             <option value="">All Statuses</option>
@@ -142,17 +169,26 @@ export default function ReportsPage() {
             <option value="reviewed">Reviewed</option>
             <option value="resolved">Resolved</option>
           </select>
-          <span className={`text-sm ${muted}`}>{reports.length} reports</span>
+          <span className={`text-sm ${muted}`} aria-live="polite">
+            {reports.length} report{reports.length === 1 ? "" : "s"}
+          </span>
         </div>
 
-        {/* Table */}
-        <div className={`rounded-xl border overflow-hidden ${card}`}>
+        <div className={`overflow-hidden rounded-xl border ${card}`}>
           {loading ? (
-            <div className="p-8 text-center">
-              <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex flex-col items-center justify-center gap-3 p-12">
+              <div
+                className="h-9 w-9 animate-spin rounded-full border-4 border-orange-500 border-t-transparent"
+                aria-hidden
+              />
+              <p className={`text-sm ${muted}`}>Loading reports…</p>
             </div>
           ) : reports.length === 0 ? (
-            <p className={`p-8 text-center text-sm ${muted}`}>No reports found.</p>
+            <div className={`flex flex-col items-center justify-center gap-2 p-12 text-center ${muted}`}>
+              <MapPinIcon className="h-12 w-12 opacity-40" />
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">No reports match this filter.</p>
+              <p className="max-w-md text-xs">Try clearing the status filter or check back after new community submissions.</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -167,32 +203,38 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-inherit">
-                  {reports.map(r => (
-                    // UX-S4-02: dark-mode hover now uses white/5 so it is visible
-                    <tr key={r.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap">{formatTime(r.submittedAt)}</td>
+                  {reports.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3">{formatTime(r.submittedAt)}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${SEVERITY_STYLES[r.severity] ?? "bg-gray-100 text-gray-700"}`}>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${SEVERITY_STYLES[r.severity] ?? "bg-gray-100 text-gray-700"}`}
+                        >
                           {r.severity}
                         </span>
                       </td>
-                      {/* BUG-S4-03: coordinates now link to Google Maps */}
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3">
                         <a
                           href={`https://maps.google.com/?q=${r.latitude},${r.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-orange-500 hover:text-orange-600 underline underline-offset-2 transition-colors"
+                          className="inline-flex items-center gap-1 text-orange-500 underline-offset-2 transition-colors hover:text-orange-600"
                         >
-                          {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)} 📍
+                          <MapPinIcon className="h-4 w-4 shrink-0" />
+                          {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)}
+                          <span className="sr-only"> (opens in Google Maps)</span>
                         </a>
                       </td>
-                      {/* UX-S4-02: title tooltip shows full description on hover */}
-                      <td className={`px-4 py-3 max-w-xs truncate ${muted}`} title={r.description ?? ""}>
+                      <td className={`max-w-xs truncate px-4 py-3 ${muted}`} title={r.description ?? ""}>
                         {r.description ?? "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${STATUS_STYLES[r.status] ?? "bg-gray-100 text-gray-700"}`}>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${STATUS_STYLES[r.status] ?? "bg-gray-100 text-gray-700"}`}
+                        >
                           {r.status}
                         </span>
                       </td>
@@ -201,19 +243,21 @@ export default function ReportsPage() {
                           <div className="flex gap-2">
                             {r.status === "pending" && (
                               <button
+                                type="button"
                                 disabled={updatingId === r.id}
-                                onClick={() => updateStatus(r.id, "reviewed")}
-                                className="px-2 py-1 text-xs font-medium rounded-md bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50 transition-colors"
+                                onClick={() => void updateStatus(r.id, "reviewed")}
+                                className="rounded-md bg-blue-500 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
                               >
-                                Review
+                                {updatingId === r.id ? "…" : "Review"}
                               </button>
                             )}
                             <button
+                              type="button"
                               disabled={updatingId === r.id}
-                              onClick={() => updateStatus(r.id, "resolved")}
-                              className="px-2 py-1 text-xs font-medium rounded-md bg-green-500 hover:bg-green-600 text-white disabled:opacity-50 transition-colors"
+                              onClick={() => void updateStatus(r.id, "resolved")}
+                              className="rounded-md bg-green-500 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-50"
                             >
-                              Resolve
+                              {updatingId === r.id ? "…" : "Resolve"}
                             </button>
                           </div>
                         )}

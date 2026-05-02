@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "@/lib/ThemeContext";
 import { useAuth } from "@/lib/AuthContext";
+import { authFetchJson } from "@/lib/authFetch";
 import toast from "react-hot-toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -25,6 +26,15 @@ type FormState = {
   role: string;
 };
 
+const CRM_ROLE_OPTIONS: { value: string; label: string; description: string }[] = [
+  { value: "admin", label: "Admin", description: "Full system access, including user and role management." },
+  { value: "operations_manager", label: "Operations Manager", description: "Sensors, alerts, analytics, community, news & blog, and reports — no user admin." },
+  { value: "field_technician", label: "Field Technician", description: "Sensors, map, and analytics; no community or blog management." },
+  { value: "ngo_volunteer", label: "NGO Volunteer", description: "Community moderation, news & blog, and incident reports." },
+  { value: "viewer", label: "Viewer", description: "Read-only access to dashboard, sensors, map, and analytics." },
+  { value: "customer", label: "Customer", description: "End-user access; no operational CRM features." },
+];
+
 const EMPTY_FORM: FormState = {
   firstName: "",
   lastName: "",
@@ -32,6 +42,16 @@ const EMPTY_FORM: FormState = {
   password: "",
   role: "customer",
 };
+
+function displayLabelToRoleValue(displayLabel: string): string {
+  const match = CRM_ROLE_OPTIONS.find((o) => o.label === displayLabel);
+  if (match) return match.value;
+  return displayLabel.toLowerCase().replace(/\s+/g, "_");
+}
+
+function roleDescriptionFor(value: string): string {
+  return CRM_ROLE_OPTIONS.find((o) => o.value === value)?.description ?? "";
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,17 +68,20 @@ function relativeTime(iso: string | null): string {
 }
 
 function roleBadge(role: string) {
-  const isAdmin = role.toLowerCase() === "admin";
-  return isAdmin
-    ? "bg-primary-blue/10 text-primary-blue border border-primary-blue/30"
-    : "bg-status-green/10 text-status-green border border-status-green/30";
+  if (role === "Admin") {
+    return "bg-primary-blue/10 text-primary-blue border border-primary-blue/30";
+  }
+  if (role === "Customer") {
+    return "bg-status-green/10 text-status-green border border-status-green/30";
+  }
+  return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function RolesPage() {
   const { isDark } = useTheme();
-  const { accessToken, user: currentUser } = useAuth();
+  const { accessToken, silentRefresh, user: currentUser } = useAuth();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,27 +98,24 @@ export default function RolesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // ── API calls ───────────────────────────────────────────────────────────────
-
-  const authHeaders = useCallback((): Record<string, string> => ({
-    "Content-Type": "application/json",
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  }), [accessToken]);
+  // ── API calls (authFetchJson = silent refresh on 401) ───────────────────────
 
   const fetchUsers = useCallback(async () => {
+    if (!accessToken) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/users", { headers: authHeaders() });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: AdminUser[] = await res.json();
-      setUsers(data);
+      const data = await authFetchJson<AdminUser[]>("/api/admin/users", accessToken, silentRefresh);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load users");
     } finally {
       setIsLoading(false);
     }
-  }, [authHeaders]);
+  }, [accessToken, silentRefresh]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -107,11 +127,12 @@ export default function RolesPage() {
     if (!form.email.includes("@")) { setFormError("Valid email required"); return; }
     if (form.password.length < 8) { setFormError("Password must be at least 8 characters"); return; }
 
+    if (!accessToken) return;
     setIsSaving(true);
     try {
-      const res = await fetch("/api/admin/users", {
+      const created = await authFetchJson<AdminUser>("/api/admin/users", accessToken, silentRefresh, {
         method: "POST",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           firstName: form.firstName.trim() || form.email.split("@")[0],
           lastName: form.lastName.trim() || "-",
@@ -120,12 +141,8 @@ export default function RolesPage() {
           role: form.role,
         }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-      const created: AdminUser = await res.json();
       setUsers((prev) => [created, ...prev]);
+      toast.success("User created.");
       setShowAddModal(false);
       setForm(EMPTY_FORM);
     } catch (e) {
@@ -144,7 +161,7 @@ export default function RolesPage() {
       lastName: rest.join(" "),
       email: u.email,
       password: "",
-      role: u.role.toLowerCase(),
+      role: displayLabelToRoleValue(u.role),
     });
     setFormError(null);
     setEditUser(u);
@@ -154,23 +171,25 @@ export default function RolesPage() {
     e.preventDefault();
     if (!editUser) return;
     setFormError(null);
+    if (!accessToken) return;
     setIsSaving(true);
     try {
       const body: Record<string, string> = { role: form.role };
       if (form.firstName.trim()) body.firstName = form.firstName.trim();
       if (form.lastName.trim()) body.lastName = form.lastName.trim();
 
-      const res = await fetch(`/api/admin/users/${editUser.id}`, {
-        method: "PATCH",
-        headers: authHeaders(),
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-      const updated: AdminUser = await res.json();
+      const updated = await authFetchJson<AdminUser>(
+        `/api/admin/users/${editUser.id}`,
+        accessToken,
+        silentRefresh,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      toast.success("User updated.");
       setEditUser(null);
       setForm(EMPTY_FORM);
     } catch (e) {
@@ -183,15 +202,14 @@ export default function RolesPage() {
   // ── Delete user ─────────────────────────────────────────────────────────────
 
   async function handleDelete() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !accessToken) return;
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/admin/users/${deleteTarget.id}`, {
+      await authFetchJson<undefined>(`/api/admin/users/${deleteTarget.id}`, accessToken, silentRefresh, {
         method: "DELETE",
-        headers: authHeaders(),
       });
-      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
       setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      toast.success("User removed.");
       setDeleteTarget(null);
     } catch (e) {
       // BUG-S4-02: replaced native alert() with toast
@@ -236,8 +254,8 @@ export default function RolesPage() {
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           { label: "Total Users", value: users.length },
-          { label: "Admins", value: users.filter((u) => u.role.toLowerCase() === "admin").length },
-          { label: "Customers", value: users.filter((u) => u.role.toLowerCase() !== "admin").length },
+          { label: "Administrators", value: users.filter((u) => u.role === "Admin").length },
+          { label: "Other roles", value: users.filter((u) => u.role !== "Admin").length },
           { label: "Active Today", value: users.filter((u) => u.lastLogin && Date.now() - new Date(u.lastLogin).getTime() < 86400000).length },
         ].map((s) => (
           <div key={s.label} className={`rounded-2xl border p-4 ${card}`}>
@@ -282,7 +300,7 @@ export default function RolesPage() {
                   >
                     <td className={`px-6 py-4 font-medium ${text}`}>
                       <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role.toLowerCase() === "admin" ? "bg-primary-blue text-white" : "bg-status-green/20 text-status-green"}`}>
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role === "Admin" ? "bg-primary-blue text-white" : "bg-status-green/20 text-status-green"}`}>
                           {u.displayName.charAt(0).toUpperCase()}
                         </div>
                         {u.displayName}
@@ -355,9 +373,13 @@ export default function RolesPage() {
             <div>
               <label className={`block text-xs font-medium mb-1.5 ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Role *</label>
               <select required className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="customer">Customer</option>
-                <option value="admin">Admin</option>
+                {CRM_ROLE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} title={o.description}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
+              <p className={`mt-1.5 text-xs leading-snug ${muted}`}>{roleDescriptionFor(form.role)}</p>
             </div>
             {formError && <p className="text-xs text-red-600">{formError}</p>}
             <div className="flex justify-end gap-3 pt-2">
@@ -391,9 +413,13 @@ export default function RolesPage() {
             <div>
               <label className={`block text-xs font-medium mb-1.5 ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Role</label>
               <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="customer">Customer</option>
-                <option value="admin">Admin</option>
+                {CRM_ROLE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} title={o.description}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
+              <p className={`mt-1.5 text-xs leading-snug ${muted}`}>{roleDescriptionFor(form.role)}</p>
             </div>
             {formError && <p className="text-xs text-red-600">{formError}</p>}
             <div className="flex justify-end gap-3 pt-2">

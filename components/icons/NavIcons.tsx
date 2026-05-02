@@ -105,6 +105,32 @@ export function BlogIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Newspaper-style icon for News & Blog (CRM) — distinct from community BlogIcon */
+export function NewsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      {...props}
+    >
+      <path
+        fillRule="evenodd"
+        d="M4.5 3.75A1.5 1.5 0 0 0 3 5.25v15A2.25 2.25 0 0 0 5.25 22.5h12A2.25 2.25 0 0 0 19.5 20.25V6.75A1.5 1.5 0 0 0 18 5.25H5.25A1.5 1.5 0 0 1 4.5 3.75ZM6.75 9a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5H6.75ZM6.75 12.75a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5H6.75ZM6.75 16.5a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H6.75ZM14.25 9a.75.75 0 0 1 .75-.75h2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V9Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+export function SettingsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 00.12-.64l-2-3.46a.5.5 0 00-.61-.22l-2.49 1a7.03 7.03 0 00-1.69-.98l-.38-2.65A.49.49 0 0014 2h-4a.49.49 0 00-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.5.5 0 00-.61.22l-2 3.46a.5.5 0 00.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 00-.12.64l2 3.46a.5.5 0 00.61.22l2.49-1c.52.39 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65a7.03 7.03 0 001.69-.98l2.49 1a.5.5 0 00.61-.22l2-3.46a.5.5 0 00-.12-.64l-2.11-1.65zM12 15.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z" />
+    </svg>
+  );
+}
+
 export function AccountIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

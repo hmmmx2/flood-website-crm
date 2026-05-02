@@ -1,30 +1,40 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
 
 import logo from "@/app/images/logo.png";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import type { Permission } from "@/lib/permissions";
 
-const navigationLinks = [
+type FooterLink = {
+  label: string;
+  href: string;
+  /** Omit for links visible to every signed-in user (e.g. account). */
+  permission?: Permission;
+};
+
+const navigationSections: { title: string; links: FooterLink[] }[] = [
   {
     title: "Main",
     links: [
-      { label: "Dashboard", href: "/dashboard" },
-      { label: "Sensors", href: "/sensors" },
-      { label: "Flood Map", href: "/map" },
+      { label: "Dashboard", href: "/dashboard", permission: "dashboard.view" },
+      { label: "Sensors", href: "/sensors", permission: "sensors.view" },
+      { label: "Flood Map", href: "/map", permission: "map.view" },
     ],
   },
   {
     title: "Insights",
     links: [
-      { label: "Analytics", href: "/analytics" },
-      { label: "Alerts", href: "/alerts" },
+      { label: "Analytics", href: "/analytics", permission: "analytics.view" },
+      { label: "Alerts", href: "/alerts", permission: "alerts.view" },
+      { label: "News & Blog", href: "/blog", permission: "blog.manage" },
     ],
   },
   {
     title: "Management",
     links: [
-      { label: "Role Management", href: "/roles" },
+      { label: "Role Management", href: "/roles", permission: "roles.manage" },
       { label: "Account Settings", href: "/admin" },
     ],
   },
@@ -61,6 +71,15 @@ const socialLinks = [
 ];
 
 export default function Footer() {
+  const { can } = usePermissions();
+
+  const visibleSections = navigationSections
+    .map((section) => ({
+      ...section,
+      links: section.links.filter((link) => !link.permission || can(link.permission)),
+    }))
+    .filter((section) => section.links.length > 0);
+
   return (
     <footer className="bg-navy">
       {/* Main Footer Content */}
@@ -109,7 +128,7 @@ export default function Footer() {
           </div>
 
           {/* Navigation Links */}
-          {navigationLinks.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.title}>
               <h3 className="text-xs font-bold uppercase tracking-wider text-pure-white/50">
                 {section.title}

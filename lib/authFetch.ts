@@ -37,3 +37,50 @@ export async function authFetch(
 
   return res;
 }
+
+/** Error thrown when a BFF route returns a non-OK status (after refresh retry). */
+export class BffRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "BffRequestError";
+  }
+}
+
+/**
+ * Same as {@link authFetch} but parses JSON and throws {@link BffRequestError} on failure.
+ * Use for CRM CRUD calls so 401s trigger silent refresh consistently.
+ */
+export async function authFetchJson<T>(
+  url: string,
+  token: string,
+  silentRefresh: SilentRefreshFn,
+  options: RequestInit = {},
+): Promise<T> {
+  const res = await authFetch(url, token, silentRefresh, options);
+  const ct = res.headers.get("content-type") ?? "";
+
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    if (ct.includes("application/json")) {
+      try {
+        const errBody = (await res.json()) as { error?: string; message?: string };
+        if (typeof errBody?.error === "string") message = errBody.error;
+        else if (typeof errBody?.message === "string") message = errBody.message;
+      } catch {
+        /* keep generic message */
+      }
+    }
+    throw new BffRequestError(message, res.status);
+  }
+
+  if (res.status === 204) return undefined as T;
+
+  if (!ct.includes("application/json")) {
+    return undefined as T;
+  }
+
+  return res.json() as Promise<T>;
+}

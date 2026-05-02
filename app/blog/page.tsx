@@ -1,6 +1,8 @@
 "use client";
 
 import { useTheme } from "@/lib/ThemeContext";
+import { useAuth } from "@/lib/AuthContext";
+import { authFetch } from "@/lib/authFetch";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,8 +86,7 @@ function CategoryBadge({ category }: { category: string }) {
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
-async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", ...(opts?.headers ?? {}) } });
+async function parseJsonResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
@@ -310,7 +311,7 @@ function BlogCard({
               <CategoryBadge category={blog.category} />
               {blog.isFeatured && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                  ⭐ Featured
+                  Featured
                 </span>
               )}
             </div>
@@ -344,20 +345,20 @@ function BlogCard({
                     : "border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
-              {blog.isFeatured ? "★ Unfeature" : "☆ Feature"}
+              {blog.isFeatured ? "Unfeature" : "Feature"}
             </button>
             <button
               onClick={() => onEdit(blog)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
             >
-              ✏ Edit
+              Edit
             </button>
             <button
               onClick={() => onDelete(blog)}
               disabled={deleting}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition disabled:opacity-60"
             >
-              🗑 Delete
+              Delete
             </button>
           </div>
         </div>
@@ -370,6 +371,7 @@ function BlogCard({
 
 export default function BlogPage() {
   const { isDark } = useTheme();
+  const { accessToken, silentRefresh } = useAuth();
   const [blogs, setBlogs] = useState<BlogDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -389,16 +391,21 @@ export default function BlogPage() {
   }, []);
 
   const loadBlogs = useCallback(async () => {
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
     setLoading(true); setError("");
     try {
-      const data = await apiFetch<PageDto>("/api/blogs?size=100");
+      const res = await authFetch("/api/blogs?size=100", accessToken, silentRefresh);
+      const data = await parseJsonResponse<PageDto>(res);
       setBlogs(data.content ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load articles");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accessToken, silentRefresh]);
 
   useEffect(() => { void loadBlogs(); }, [loadBlogs]);
 
@@ -411,6 +418,7 @@ export default function BlogPage() {
   });
 
   const handleSave = async (form: BlogForm) => {
+    if (!accessToken) return;
     const payload = {
       title: form.title,
       body: form.body,
@@ -419,11 +427,22 @@ export default function BlogPage() {
       category: form.category,
       isFeatured: form.isFeatured,
     };
+    const headers = { "Content-Type": "application/json" };
     if (editTarget) {
-      await apiFetch(`/api/blogs/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+      const res = await authFetch(`/api/blogs/${editTarget.id}`, accessToken, silentRefresh, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(payload),
+      });
+      await parseJsonResponse(res);
       showToast("Article updated successfully");
     } else {
-      await apiFetch("/api/blogs", { method: "POST", body: JSON.stringify(payload) });
+      const res = await authFetch("/api/blogs", accessToken, silentRefresh, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+      await parseJsonResponse(res);
       showToast("Article published successfully");
     }
     await loadBlogs();
@@ -433,8 +452,10 @@ export default function BlogPage() {
     // BUG-S4-05: two-step inline confirmation — first tap arms, second confirms
     if (deleteTarget?.id !== blog.id) { setDeleteTarget(blog); return; }
     setDeleteTarget(null);
+    if (!accessToken) return;
     try {
-      await apiFetch(`/api/blogs/${blog.id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/blogs/${blog.id}`, accessToken, silentRefresh, { method: "DELETE" });
+      await parseJsonResponse(res);
       setBlogs(prev => prev.filter(b => b.id !== blog.id));
       showToast("Article deleted");
     } catch (e) {
@@ -443,8 +464,10 @@ export default function BlogPage() {
   };
 
   const handleToggleFeatured = async (blog: BlogDto) => {
+    if (!accessToken) return;
     try {
-      const updated = await apiFetch<BlogDto>(`/api/blogs/${blog.id}/featured`, { method: "PATCH" });
+      const res = await authFetch(`/api/blogs/${blog.id}/featured`, accessToken, silentRefresh, { method: "PATCH" });
+      const updated = await parseJsonResponse<BlogDto>(res);
       setBlogs(prev => prev.map(b => b.id === blog.id ? updated : b));
       showToast(updated.isFeatured ? "Marked as featured" : "Removed from featured");
     } catch (e) {
@@ -513,14 +536,13 @@ export default function BlogPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: "Total Articles", value: blogs.length, icon: "📄" },
-          { label: "Featured",       value: featuredCount, icon: "⭐" },
-          { label: "Categories",     value: categoryCount, icon: "🏷️" },
+          { label: "Total Articles", value: blogs.length },
+          { label: "Featured",       value: featuredCount },
+          { label: "Categories",     value: categoryCount },
         ].map(stat => (
           <div key={stat.label} className={`rounded-xl border p-5 ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <div className="text-2xl mb-1">{stat.icon}</div>
             <div className={`text-2xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{stat.value}</div>
-            <div className={`text-xs mt-0.5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{stat.label}</div>
+            <div className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -570,7 +592,11 @@ export default function BlogPage() {
         </div>
       ) : displayed.length === 0 ? (
         <div className={`rounded-xl border p-16 text-center ${isDark ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-white"}`}>
-          <div className="text-5xl mb-4">📰</div>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">
+            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+          </div>
           <p className={`text-lg font-semibold ${isDark ? "text-gray-300" : "text-gray-600"}`}>No articles found</p>
           <p className="text-sm text-gray-400 mt-1">
             {blogs.length === 0 ? "Create your first article to get started." : "Try adjusting your filters."}

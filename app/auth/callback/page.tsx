@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { roleFromJwtOrApiRole } from "@/lib/permissions";
 
 function CallbackInner() {
   const router = useRouter();
@@ -24,12 +25,11 @@ function CallbackInner() {
       // Transform community AuthUser → CRM User shape so AuthContext
       // reads it correctly. Critical: role must be capitalized ("Admin")
       // to match rolePermissions keys in lib/permissions.ts.
-      const rawRole: string = raw.role ?? "admin";
       const crmUser = {
         id: raw.id,
         name: raw.displayName || raw.name || raw.email,
         email: raw.email,
-        role: rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase(),
+        role: roleFromJwtOrApiRole(String(raw.role ?? "CUSTOMER")),
         status: "active",
         twoFactorEnabled: false,
         passwordLastChanged: new Date().toISOString(),

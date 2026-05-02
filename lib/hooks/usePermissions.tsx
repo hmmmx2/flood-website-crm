@@ -15,7 +15,6 @@ import {
   canManageRoles,
   canManageUsers,
   getAccessibleNavItems,
-  NavItem,
 } from "@/lib/permissions";
 
 export function usePermissions() {
@@ -50,6 +49,7 @@ export function usePermissions() {
       isAdmin: role === "Admin",
       isOperationsManager: role === "Operations Manager",
       isFieldTechnician: role === "Field Technician",
+      isNGOVolunteer: role === "NGO Volunteer",
       isViewer: role === "Viewer",
     };
   }, [role]);

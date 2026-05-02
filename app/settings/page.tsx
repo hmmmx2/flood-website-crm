@@ -1,8 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "react-hot-toast";
 
+import { useAuth } from "@/lib/AuthContext";
+import { authFetchJson } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -182,6 +184,7 @@ const tabs: { id: SettingsTab; label: string; icon: React.ComponentType<React.SV
 
 export default function SettingsPage() {
   const { isDark } = useTheme();
+  const { accessToken, silentRefresh } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<CRMSettings>(defaultSettings);
   const [originalSettings, setOriginalSettings] = useState<CRMSettings>(defaultSettings);
@@ -246,11 +249,21 @@ export default function SettingsPage() {
   const handleTestConnection = async (service: string) => {
     const toastId = toast.loading(`Testing ${service} connection…`);
     try {
-      // Ping the BFF health endpoint; 200 = server reachable
-      const res = await fetch("/api/nodes", { method: "HEAD" }).catch(() => null);
-      const ok = res ? res.ok || res.status === 405 : false; // 405 is fine (HEAD not allowed but server answered)
-      if (ok) {
-        toast.success(`${service} connection successful!`, { id: toastId });
+      if (service === "Java API") {
+        if (!accessToken) {
+          toast.error("Sign in to test the Java API connection through the CRM.", { id: toastId });
+          return;
+        }
+        await authFetchJson<{ success: boolean; data?: unknown }>("/api/nodes", accessToken, silentRefresh);
+        toast.success("Java API responded successfully (BFF to backend path is working).", { id: toastId });
+        return;
+      }
+      const res = await fetch("/api/health", { cache: "no-store" });
+      if (res.ok) {
+        toast.success(
+          "CRM application server is reachable. Google Maps keys are applied when you open the Map page.",
+          { id: toastId, duration: 5000 },
+        );
       } else {
         toast.error(`${service} connection failed — server unreachable.`, { id: toastId });
       }
