@@ -19,8 +19,11 @@ import { fileURLToPath } from "url";
 const __dir   = dirname(fileURLToPath(import.meta.url));
 const EXPORT  = join(__dir, "..", "mongodb-export");
 
-const DATABASE_URL =
-  "postgresql://neondb_owner:npg_wWQz47ALcopb@ep-empty-wave-anxnq609-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("Set DATABASE_URL to your Neon connection string (postgresql://…), e.g. export DATABASE_URL=…");
+  process.exit(1);
+}
 
 const sql = neon(DATABASE_URL);
 

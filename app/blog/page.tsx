@@ -36,17 +36,15 @@ type BlogForm = {
   isFeatured: boolean;
 };
 
-// BUG-S4-01: "General" is not a recognised category on the community side —
-// articles tagged "General" would match no filter chip and become invisible
-// to end-users. Canonical list must match flood-website-community & flood-mobile.
-const CATEGORIES = ["Flood Alert", "Safety Tips", "Community", "Updates", "Research"];
+// Canonical list must match flood-website-community & flood-mobile (incl. General).
+const CATEGORIES = ["General", "Flood Alert", "Safety Tips", "Community", "Updates", "Research"];
 
 const EMPTY_FORM: BlogForm = {
   title: "",
   body: "",
   imageUrl: "",
   imageKey: "blog-1",
-  category: "Updates",
+  category: "General",
   isFeatured: false,
 };
 
@@ -66,6 +64,7 @@ function readingTime(body: string): string {
 
 function categoryColor(cat: string): { bg: string; text: string } {
   switch (cat) {
+    case "General": return { bg: "bg-gray-100 dark:bg-gray-700", text: "text-gray-700 dark:text-gray-300" };
     case "Flood Alert": return { bg: "bg-blue-100 dark:bg-blue-900/30",    text: "text-blue-700 dark:text-blue-400" };
     case "Safety Tips": return { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-400" };
     case "Community":   return { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-400" };
