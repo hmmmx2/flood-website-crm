@@ -121,27 +121,35 @@ export default function AnalyticsPage() {
     (async () => {
       setIsLoading(true);
       try {
-        const d = await authFetchJson<AnalyticsData>("/api/analytics", accessToken, silentRefresh);
-        if (!cancelled) setData(d);
-      } catch (err) {
-        console.error("Analytics fetch failed:", err);
-        if (!cancelled) toast.error("Failed to load analytics data.");
+        const [analyticsResult, nodesResult] = await Promise.allSettled([
+          authFetchJson<AnalyticsData>("/api/analytics", accessToken, silentRefresh),
+          authFetchJson<NodesApiResponse>("/api/nodes", accessToken, silentRefresh),
+        ]);
+        if (cancelled) return;
+
+        if (analyticsResult.status === "fulfilled") {
+          setData(analyticsResult.value);
+        } else {
+          console.error("Analytics fetch failed:", analyticsResult.reason);
+          toast.error("Failed to load analytics data.");
+        }
+
+        if (nodesResult.status === "fulfilled") {
+          const result = nodesResult.value;
+          if (result?.success && Array.isArray(result.data)) {
+            const map: Record<string, { latitude: number; longitude: number }> = {};
+            result.data.forEach((n) => {
+              if (n.node_id != null && n.latitude != null && n.longitude != null) {
+                map[n.node_id] = { latitude: n.latitude, longitude: n.longitude };
+              }
+            });
+            setNodeGpsMap(map);
+          }
+        } else {
+          console.warn("Node GPS fetch failed; bubble map may be incomplete.");
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
-      }
-
-      try {
-        const result = await authFetchJson<NodesApiResponse>("/api/nodes", accessToken, silentRefresh);
-        if (cancelled || !result?.success || !Array.isArray(result.data)) return;
-        const map: Record<string, { latitude: number; longitude: number }> = {};
-        result.data.forEach((n) => {
-          if (n.node_id != null && n.latitude != null && n.longitude != null) {
-            map[n.node_id] = { latitude: n.latitude, longitude: n.longitude };
-          }
-        });
-        setNodeGpsMap(map);
-      } catch {
-        console.warn("Node GPS fetch failed; bubble map may be incomplete.");
       }
     })();
 

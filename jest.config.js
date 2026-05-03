@@ -7,6 +7,8 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
+  // Run before any module so `react` resolves to the development CJS build (includes `act`).
+  setupFiles: ['<rootDir>/jest.env-setup.js'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {

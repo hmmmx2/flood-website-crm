@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   Bar,
@@ -125,59 +125,53 @@ export default function DashboardPage() {
     return () => window.removeEventListener("storage", loadSettings);
   }, []);
 
-  // Fetch nodes data from API
-  const fetchNodes = useCallback(async () => {
+  // Initial parallel fetch: nodes + analytics (wall time ≈ max of the two, not their sum).
+  useEffect(() => {
     if (!accessToken) {
-      setIsLoading(false);
+      queueMicrotask(() => setIsLoading(false));
       return;
     }
-    // Only show the full-page spinner on the very first load
-    if (isFirstFetch.current) setIsLoading(true);
-    try {
-      const result = await authFetchJson<{ success: boolean; data: NodeData[] }>(
-        "/api/nodes",
-        accessToken,
-        silentRefresh,
-      );
-      if (result.success && Array.isArray(result.data)) {
-        setNodes(result.data);
-        setLastFetch(new Date());
-        isFirstFetch.current = false;
-      }
-    } catch (error) {
-      console.error("Error fetching nodes:", error);
-      // Only show toast on first load; silent refresh failures don't interrupt
-      if (isFirstFetch.current) {
-        toast.error("Failed to load sensor data. Please refresh.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, silentRefresh]);
-
-  // Fetch analytics (token-protected, same BFF path as /analytics page)
-  useEffect(() => {
-    if (!accessToken) return;
+    if (isFirstFetch.current) queueMicrotask(() => setIsLoading(true));
     let cancelled = false;
-    (async () => {
-      try {
-        const d = await authFetchJson<AnalyticsData>("/api/analytics", accessToken, silentRefresh);
+
+    const nodesP = authFetchJson<{ success: boolean; data: NodeData[] }>(
+      "/api/nodes",
+      accessToken,
+      silentRefresh,
+    )
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && Array.isArray(result.data)) {
+          setNodes(result.data);
+          setLastFetch(new Date());
+          isFirstFetch.current = false;
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching nodes:", error);
+        if (!cancelled && isFirstFetch.current) {
+          toast.error("Failed to load sensor data. Please refresh.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    const analyticsP = authFetchJson<AnalyticsData>("/api/analytics", accessToken, silentRefresh)
+      .then((d) => {
         if (!cancelled) setAnalytics(d);
-      } catch (err) {
+      })
+      .catch((err) => {
         console.error("Analytics fetch failed:", err);
         if (!cancelled) toast.error("Failed to load analytics data.");
-      }
-    })();
+      });
+
+    void Promise.all([nodesP, analyticsP]);
+
     return () => {
       cancelled = true;
     };
   }, [accessToken, silentRefresh]);
-
-  // Initial fetch
-  useEffect(() => {
-    if (!accessToken) return;
-    fetchNodes();
-  }, [accessToken, fetchNodes]);
 
   // SSE real-time updates (replaces setInterval polling)
   useEffect(() => {
