@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     else endpoint = `/api/v1/predict/daily?year=${year}`;
 
     const upstream = await fetch(`${AI_API_URL}${endpoint}`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(28_000),
     });
 
     if (!upstream.ok) {

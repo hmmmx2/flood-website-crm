@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const JAVA_API_URL =
   process.env.JAVA_API_URL ||
