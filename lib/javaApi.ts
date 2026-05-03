@@ -6,37 +6,34 @@
 //
 // Environment:
 //   JAVA_API_URL  — CRM Spring Boot (`flood-service-crm`, default port 4002).
-//                   Docker: http://crm-api:4002 (see flood-service-crm/docker-compose.yml)
-//                   Local:  http://localhost:4002
+//                   Docker + Kong: http://kong-gateway:8000/crm (see deploy/docker-compose.yml)
+//                   Local direct:  http://localhost:4002
+//                   Vercel + Railway: https://…railway.app (direct; no Kong)
 //   COMMUNITY_JAVA_API_URL — flood-service-community (threaded comments + admin
 //                   moderation). Defaults to JAVA_API_URL when omitted.
+//                   Docker + Kong: http://kong-gateway:8000/community
 // ─────────────────────────────────────────────────────────────
 
-// Normalise the URL: if the env var was set without a protocol (e.g. in
-// Vercel's dashboard without "https://"), prefix it automatically so that
-// Node.js fetch does not throw "Failed to parse URL".
-function normaliseUrl(raw: string): string {
-  if (!raw || raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  return `https://${raw}`;
-}
+import { normaliseJavaApiBase } from "@/lib/normaliseJavaApiBase";
 
-const JAVA_API_URL = normaliseUrl(
+const JAVA_API_URL = normaliseJavaApiBase(
   process.env.JAVA_API_URL ||
-  process.env.NEXT_PUBLIC_JAVA_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:4002"
+    process.env.NEXT_PUBLIC_JAVA_API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+  "http://localhost:4002",
 );
 
 /** flood-service-community — comment threading / moderation APIs when deployed separately from CRM. */
-const COMMUNITY_JAVA_API_URL = normaliseUrl(
-  process.env.COMMUNITY_JAVA_API_URL || JAVA_API_URL
+const COMMUNITY_JAVA_API_URL = normaliseJavaApiBase(
+  process.env.COMMUNITY_JAVA_API_URL || JAVA_API_URL,
+  JAVA_API_URL,
 );
 
 type FetchOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
-  token?: string;          // Bearer token from the incoming CRM request
-  revalidate?: number;     // Next.js ISR revalidation in seconds (default: 0)
+  token?: string; // Bearer token from the incoming CRM request
+  revalidate?: number; // Next.js ISR revalidation in seconds (default: 0)
   /** Hard timeout in ms. Defaults to 10 s — prevents hanging on Railway cold starts. */
   timeoutMs?: number;
 };
@@ -44,9 +41,10 @@ type FetchOptions = {
 async function javaFetchWithBase<T>(
   base: string,
   path: string,
-  { method = "GET", body, token, revalidate = 0, timeoutMs = 10_000 }: FetchOptions = {}
+  { method = "GET", body, token, revalidate = 0, timeoutMs = 10_000 }: FetchOptions = {},
 ): Promise<T> {
-  const url = `${base}${path}`;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const url = `${base}${p}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -66,7 +64,9 @@ async function javaFetchWithBase<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    const err = new Error(`Java API ${method} ${path} → ${res.status}: ${text}`) as Error & { status: number };
+    const err = new Error(`Java API ${method} ${p} → ${res.status}: ${text}`) as Error & {
+      status: number;
+    };
     err.status = res.status;
     throw err;
   }
@@ -85,7 +85,10 @@ export async function javaFetch<T>(path: string, opts: FetchOptions = {}): Promi
  * Calls {@link COMMUNITY_JAVA_API_URL} (defaults to {@link JAVA_API_URL}).
  * Use for community comment admin routes backed by `flood-service-community`.
  */
-export async function communityJavaFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+export async function communityJavaFetch<T>(
+  path: string,
+  opts: FetchOptions = {},
+): Promise<T> {
   return javaFetchWithBase<T>(COMMUNITY_JAVA_API_URL, path, opts);
 }
 
@@ -97,7 +100,7 @@ export type JavaSensorDto = {
   name: string;
   status: "active" | "warning" | "inactive";
   distance: string;
-  coordinate: [number, number];   // [longitude, latitude]
+  coordinate: [number, number]; // [longitude, latitude]
   area: string;
   location: string;
   state: string;

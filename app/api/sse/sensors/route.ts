@@ -4,14 +4,18 @@
 
 import { NextResponse } from "next/server";
 
+import { normaliseJavaApiBase } from "@/lib/normaliseJavaApiBase";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const JAVA_API_URL =
+const JAVA_API_URL = normaliseJavaApiBase(
   process.env.JAVA_API_URL ||
-  process.env.NEXT_PUBLIC_JAVA_API_URL ||
-  "http://localhost:4002";
+    process.env.NEXT_PUBLIC_JAVA_API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+  "http://localhost:4002",
+);
 
 export async function GET() {
   try {

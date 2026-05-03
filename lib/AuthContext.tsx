@@ -22,6 +22,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
+import { normaliseJavaApiBase } from "@/lib/normaliseJavaApiBase";
 import { roleFromJwtOrApiRole } from "@/lib/permissions";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -75,10 +76,14 @@ type AuthContextType = {
 // fallback for legacy direct calls (login form in the CRM itself).
 
 /** flood-service-crm listens on port 4002 locally (see application.yml PORT). */
-const JAVA_API =
+const JAVA_API = normaliseJavaApiBase(
   typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_JAVA_API_URL || "http://localhost:4002")
-    : (process.env.JAVA_API_URL || process.env.NEXT_PUBLIC_JAVA_API_URL || "http://localhost:4002");
+    ? process.env.NEXT_PUBLIC_JAVA_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL
+    : process.env.JAVA_API_URL ||
+        process.env.NEXT_PUBLIC_JAVA_API_URL ||
+        process.env.NEXT_PUBLIC_API_BASE_URL,
+  "http://localhost:4002",
+);
 
 // ── Token storage ─────────────────────────────────────────────
 
