@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -140,14 +140,16 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
-      setSearchTerm("");
-      setSelectedIndex(0);
+      startTransition(() => {
+        setSearchTerm("");
+        setSelectedIndex(0);
+      });
     }
   }, [isOpen]);
 
   // Reset selected index when results change
   useEffect(() => {
-    setSelectedIndex(0);
+    startTransition(() => setSelectedIndex(0));
   }, [searchTerm]);
 
   // Scroll selected item into view

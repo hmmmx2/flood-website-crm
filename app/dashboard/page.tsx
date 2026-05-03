@@ -718,8 +718,8 @@ export default function DashboardPage() {
           </div>
 
           {/* Chart */}
-          <div className="mt-4 h-60">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="mt-4 h-60 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={240} minWidth={0}>
               <BarChart data={filteredRiskData} barCategoryGap="18%">
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                 <XAxis
@@ -835,8 +835,8 @@ export default function DashboardPage() {
           >
             Real-time readings (ft)
           </p>
-          <div className="mt-4 h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="mt-4 h-72 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={288} minWidth={0}>
               <BarChart data={barChartData} barCategoryGap="20%">
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                 <XAxis
@@ -914,8 +914,8 @@ export default function DashboardPage() {
           >
             Total vs Critical incidents
           </p>
-          <div className="mt-4 h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="mt-4 h-72 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={288} minWidth={0}>
               <BarChart data={stateBarData} layout="vertical" barCategoryGap="18%">
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                 <XAxis

@@ -15,7 +15,8 @@ export type Permission =
   | "settings.manage"
   | "blog.view"
   | "blog.manage"
-  | "reports.manage";
+  | "reports.manage"
+  | "community.comments.moderate";
 
 export type RoleName =
   | "Admin"
@@ -55,6 +56,13 @@ export const appNavigationItems: AppNavItem[] = [
   { label: "Analytics", href: "/analytics", iconKey: "analytics", section: "main", permission: "analytics.view" },
   { label: "Alerts", href: "/alerts", iconKey: "alerts", section: "main", permission: "alerts.view" },
   { label: "Community", href: "/community", iconKey: "community", section: "main", permission: "blog.view" },
+  {
+    label: "Community comments",
+    href: "/community/comments",
+    iconKey: "community",
+    section: "main",
+    permission: "community.comments.moderate",
+  },
   { label: "News & Blog", href: "/blog", iconKey: "news", section: "main", permission: "blog.manage" },
   { label: "Role Management", href: "/roles", iconKey: "roles", section: "management", permission: "roles.manage" },
   { label: "Account Settings", href: "/admin", iconKey: "account", section: "management", permission: "dashboard.view", alwaysShow: true },
@@ -124,6 +132,7 @@ export const permissionDescriptions: Record<Permission, string> = {
   "blog.view": "Moderate community posts and groups",
   "blog.manage": "Create and manage news and blog articles",
   "reports.manage": "Review and update incident reports",
+  "community.comments.moderate": "Hide, restore, or remove community post comments (admin)",
 };
 
 // Check if a role has a specific permission
@@ -193,6 +202,7 @@ export const pagePermissions: Record<string, Permission> = {
   "/settings": "settings.manage",
   "/blog": "blog.manage",
   "/community": "blog.view",
+  "/community/comments": "community.comments.moderate",
   "/reports": "reports.manage",
   "/broadcasts": "alerts.manage",
   "/portal": "dashboard.view",

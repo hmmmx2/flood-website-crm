@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import logo from "@/public/images/logo.png";
+import { ThemeToggle } from "@/lib/theme/ThemeToggle";
 import { useTheme } from "@/lib/ThemeContext";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -95,36 +96,6 @@ function ProfileIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function SunIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      {...props}
-    >
-      <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
-    </svg>
-  );
-}
-
-function MoonIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      {...props}
-    >
-      <path
-        fillRule="evenodd"
-        d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
 function LogoutIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -141,54 +112,6 @@ function LogoutIcon(props: React.SVGProps<SVGSVGElement>) {
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
-  );
-}
-
-// Theme Toggle Switch Component
-function ThemeToggle() {
-  const { isDark, toggleTheme } = useTheme();
-
-  return (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      className={`relative flex h-10 w-10 sm:h-11 sm:w-[70px] items-center justify-center sm:justify-start rounded-full border transition-all duration-300 ${
-        isDark
-          ? "border-dark-border bg-dark-card hover:border-primary-blue"
-          : "border-light-grey bg-very-light-grey/50 hover:border-primary-blue"
-      }`}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-    >
-      {/* Mobile: Single icon */}
-      <span className="sm:hidden">
-        {isDark ? (
-          <MoonIcon className="h-5 w-5 text-yellow-400" />
-        ) : (
-          <SunIcon className="h-5 w-5 text-amber-500" />
-        )}
-      </span>
-
-      {/* Desktop: Toggle switch with both icons */}
-      <span className="hidden sm:flex items-center w-full px-1">
-        {/* Sun icon */}
-        <span
-          className={`flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 ${
-            !isDark ? "bg-amber-500 text-white" : "text-dark-text-muted"
-          }`}
-        >
-          <SunIcon className="h-4 w-4" />
-        </span>
-
-        {/* Moon icon */}
-        <span
-          className={`flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 ${
-            isDark ? "bg-indigo-500 text-white" : "text-dark-charcoal/40"
-          }`}
-        >
-          <MoonIcon className="h-4 w-4" />
-        </span>
-      </span>
-    </button>
   );
 }
 

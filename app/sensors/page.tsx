@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -361,7 +361,7 @@ export default function SensorsPage() {
   const exportToExcel = () => {
     const headers = ["Node ID", "Water Level (ft)", "Latitude", "Longitude", "Water Status", "Node Status", "Last Updated", "Created At"];
     
-    let xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+    const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
   xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">

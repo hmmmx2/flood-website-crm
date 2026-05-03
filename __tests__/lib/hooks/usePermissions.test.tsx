@@ -5,20 +5,25 @@ import { ReactNode } from 'react';
 
 // Mock user in localStorage
 const createWrapper = (userRole: string) => {
-  return ({ children }: { children: ReactNode }) => {
+  function Wrapper({ children }: { children: ReactNode }) {
     const testUser = {
-      id: 'test-user',
-      name: 'Test User',
-      email: 'test@example.com',
+      id: "test-user",
+      name: "Test User",
+      email: "test@example.com",
       role: userRole,
-      status: 'active' as const,
+      status: "active" as const,
     };
-    localStorage.setItem('flood_registered_users', JSON.stringify([testUser]));
-    localStorage.setItem('flood_auth_user', JSON.stringify(testUser));
-    localStorage.setItem('flood_auth_session', JSON.stringify({ userId: testUser.id, timestamp: Date.now() }));
-    
+    localStorage.setItem("flood_registered_users", JSON.stringify([testUser]));
+    localStorage.setItem("flood_auth_user", JSON.stringify(testUser));
+    localStorage.setItem(
+      "flood_auth_session",
+      JSON.stringify({ userId: testUser.id, timestamp: 0 }),
+    );
+
     return <AuthProvider>{children}</AuthProvider>;
-  };
+  }
+  Wrapper.displayName = "AuthTestWrapper";
+  return Wrapper;
 };
 
 describe('usePermissions', () => {
@@ -36,6 +41,7 @@ describe('usePermissions', () => {
     expect(result.current.can('dashboard.view')).toBe(true);
     expect(result.current.can('sensors.view')).toBe(true);
     expect(result.current.can('roles.manage')).toBe(true);
+    expect(result.current.can('community.comments.moderate')).toBe(true);
   });
 
   it('returns correct permissions for Viewer role', () => {
@@ -75,6 +81,14 @@ describe('usePermissions', () => {
     expect(result.current.canAll(['dashboard.view', 'sensors.view'])).toBe(true);
     // Operations Manager doesn't have roles.manage
     expect(result.current.canAll(['dashboard.view', 'roles.manage'])).toBe(false);
+  });
+
+  it('does not grant comment moderation to Operations Manager', () => {
+    const { result } = renderHook(() => usePermissions(), {
+      wrapper: createWrapper('Operations Manager'),
+    });
+
+    expect(result.current.can('community.comments.moderate')).toBe(false);
   });
 });
 

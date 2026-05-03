@@ -1,130 +1,103 @@
-// Mock Next.js server modules before imports
-jest.mock('next/server', () => ({
-  NextResponse: {
-    json: jest.fn((data, init) => ({
-      json: jest.fn().mockResolvedValue(data),
-      status: init?.status || 200,
-      ...data,
-    })),
-  },
+/**
+ * @jest-environment node
+ */
+jest.mock("@/lib/redis", () => ({
+  withCache: jest.fn((_key: string, _ttl: number, fn: () => Promise<unknown>) => fn()),
+  CACHE_TTL: { nodes: 30 },
 }));
 
-jest.mock('@/lib/mongodb', () => ({
-  connectToDatabase: jest.fn(),
+jest.mock("@/lib/javaApi", () => ({
+  javaFetch: jest.fn(),
 }));
 
-import { connectToDatabase } from '@/lib/mongodb';
-import { NextResponse } from 'next/server';
+import { NextRequest } from "next/server";
 
-// Import after mocks
-const { GET } = require('@/app/api/nodes/route');
+import { GET } from "@/app/api/nodes/route";
+import type { JavaSensorDto } from "@/lib/javaApi";
+import { javaFetch } from "@/lib/javaApi";
 
-describe('/api/nodes', () => {
+function baseSensor(overrides: Partial<JavaSensorDto> = {}): JavaSensorDto {
+  return {
+    id: "sensor-id-1",
+    nodeId: "102782478",
+    name: "Node A",
+    status: "active",
+    distance: "0",
+    coordinate: [110.357783, 1.531427],
+    area: "Area",
+    location: "Loc",
+    state: "SK",
+    currentLevel: 0,
+    isDead: false,
+    lastUpdated: "2025-12-01T12:07:19.857Z",
+    createdAt: "2025-11-24T06:36:00.369Z",
+    ...overrides,
+  };
+}
+
+function makeRequest() {
+  return new NextRequest("http://localhost/api/nodes");
+}
+
+describe("/api/nodes GET", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('returns nodes data successfully', async () => {
-    const mockNodes = [
-      {
-        _id: { toString: () => '123' },
-        node_id: '102782478',
-        latitude: 1.531427,
-        longitude: 110.357783,
-        current_level: 0,
-        is_dead: false,
-        last_updated: new Date('2025-12-01T12:07:19.857Z'),
-        created_at: new Date('2025-11-24T06:36:00.369Z'),
-      },
-    ];
+  it("returns nodes data successfully", async () => {
+    (javaFetch as jest.Mock).mockResolvedValue([baseSensor()]);
 
-    (connectToDatabase as jest.Mock).mockResolvedValue({
-      db: {
-        collection: jest.fn(() => ({
-          find: jest.fn(() => ({
-            sort: jest.fn(() => ({
-              toArray: jest.fn().mockResolvedValue(mockNodes),
-            })),
-          })),
-        })),
-      },
-    });
-
-    const response = await GET();
-    const data = await response.json();
+    const response = await GET(makeRequest());
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as {
+      success: boolean;
+      data: { node_id: string }[];
+      count: number;
+    };
 
     expect(data.success).toBe(true);
     expect(data.data).toHaveLength(1);
-    expect(data.data[0].node_id).toBe('102782478');
+    expect(data.data[0].node_id).toBe("102782478");
     expect(data.count).toBe(1);
   });
 
-  it('handles database connection errors', async () => {
-    (connectToDatabase as jest.Mock).mockRejectedValue(
-      new Error('Database connection failed')
-    );
+  it("handles Java API errors", async () => {
+    (javaFetch as jest.Mock).mockRejectedValue(new Error("upstream failed"));
 
-    const response = await GET();
-    const data = await response.json();
+    const response = await GET(makeRequest());
+    expect(response.status).toBe(500);
+    const data = (await response.json()) as { success: boolean; error: string };
 
     expect(data.success).toBe(false);
-    expect(data.error).toBe('Failed to fetch nodes data');
+    expect(data.error).toBe("Failed to fetch nodes data");
   });
 
-  it('transforms MongoDB documents correctly', async () => {
-    const mockNodes = [
-      {
-        _id: { toString: () => '123' },
-        node_id: '102782478',
-        latitude: 1.531427,
-        longitude: 110.357783,
-        current_level: 2,
-        is_dead: false,
-        last_updated: new Date('2025-12-01T12:07:19.857Z'),
-        created_at: new Date('2025-11-24T06:36:00.369Z'),
-      },
-    ];
+  it("maps JavaSensorDto to NodeData", async () => {
+    (javaFetch as jest.Mock).mockResolvedValue([
+      baseSensor({ id: "uuid-2", currentLevel: 2 }),
+    ]);
 
-    (connectToDatabase as jest.Mock).mockResolvedValue({
-      db: {
-        collection: jest.fn(() => ({
-          find: jest.fn(() => ({
-            sort: jest.fn(() => ({
-              toArray: jest.fn().mockResolvedValue(mockNodes),
-            })),
-          })),
-        })),
-      },
-    });
-
-    const response = await GET();
-    const data = await response.json();
+    const response = await GET(makeRequest());
+    const data = (await response.json()) as {
+      data: Array<{ _id: string; node_id: string; current_level: number }>;
+    };
 
     expect(data.data[0]).toMatchObject({
-      _id: '123',
-      node_id: '102782478',
-      latitude: 1.531427,
-      longitude: 110.357783,
+      _id: "uuid-2",
+      node_id: "102782478",
       current_level: 2,
-      is_dead: false,
     });
   });
 
-  it('returns empty array when no nodes found', async () => {
-    (connectToDatabase as jest.Mock).mockResolvedValue({
-      db: {
-        collection: jest.fn(() => ({
-          find: jest.fn(() => ({
-            sort: jest.fn(() => ({
-              toArray: jest.fn().mockResolvedValue([]),
-            })),
-          })),
-        })),
-      },
-    });
+  it("returns empty array when Java returns none", async () => {
+    (javaFetch as jest.Mock).mockResolvedValue([]);
 
-    const response = await GET();
-    const data = await response.json();
+    const response = await GET(makeRequest());
+    const data = (await response.json()) as {
+      success: boolean;
+      data: unknown[];
+      count: number;
+    };
 
     expect(data.success).toBe(true);
     expect(data.data).toEqual([]);

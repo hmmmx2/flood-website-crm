@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   try {
     const token = req.headers.get("authorization")?.replace("Bearer ", "");
     const body = await req.json();
-    const data = await javaFetch<unknown>(`/blogs/${id}`, { method: "PATCH" as any, body, token });
+    const data = await javaFetch<unknown>(`/blogs/${id}`, { method: "PATCH", body, token });
     return NextResponse.json(data);
   } catch (error) {
     const status = (error as { status?: number }).status ?? 500;

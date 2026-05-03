@@ -324,8 +324,8 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Chart */}
-          <div className="mt-4 h-56">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="mt-4 h-56 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={224} minWidth={0}>
               <BarChart data={filteredRiskData} barCategoryGap="18%">
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                 <XAxis dataKey="name" tick={{ fontSize: 9, fill: chartTextColor }} axisLine={false} tickLine={false} />
@@ -369,7 +369,7 @@ export default function AnalyticsPage() {
             Top 10 nodes — current readings (m)
           </p>
           <div className="mt-4 h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
               <BarChart data={barChartData} barCategoryGap="20%">
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} label={{ value: "Node ID", position: "insideBottom", offset: -5, fontSize: 11, fill: chartTextColor }} />
@@ -410,8 +410,8 @@ export default function AnalyticsPage() {
               Monthly
             </span>
           </div>
-          <div className="mt-4 h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="mt-4 h-72 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={288} minWidth={0}>
               <AreaChart data={yearlyChartData}>
                 <defs>
                   <linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1">
@@ -454,7 +454,7 @@ export default function AnalyticsPage() {
               </div>
             ))}
           </div>
-          <div className="mt-2 h-64">
+          <div className="mt-2 h-64 w-full min-w-0">
             {bubbleData.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2">
                 <span className={`text-3xl`}>📡</span>
@@ -466,7 +466,7 @@ export default function AnalyticsPage() {
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
                 <ScatterChart>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
                   <XAxis type="number" dataKey="x" name="Longitude" tick={{ fontSize: 10, fill: chartTextColor }} domain={["dataMin - 0.1", "dataMax + 0.1"]} tickFormatter={(v) => v.toFixed(2)} label={{ value: "Longitude (°E)", position: "insideBottom", offset: -5, fontSize: 11, fill: chartTextColor }} />
@@ -475,11 +475,12 @@ export default function AnalyticsPage() {
                   <Tooltip
                     cursor={{ strokeDasharray: "3 3" }}
                     contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    formatter={((value: unknown, name: unknown) => {
+                    formatter={(value: unknown, name: unknown) => {
                       if (name === "z") return null;
-                      return [typeof value === "number" ? value.toFixed(4) : value, name];
-                    }) as any}
+                      const label =
+                        typeof value === "number" ? value.toFixed(4) : String(value ?? "");
+                      return [label, String(name ?? "")];
+                    }}
                   />
                   <Scatter name="Nodes" data={bubbleData}>
                     {bubbleData.map((entry) => (
@@ -505,8 +506,8 @@ export default function AnalyticsPage() {
         <p className={`text-xs uppercase tracking-wide transition-colors ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>
           Cumulative alert events per state
         </p>
-        <div className="mt-4 h-64">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="mt-4 h-64 w-full min-w-0">
+          <ResponsiveContainer width="100%" height={256} minWidth={0}>
             <BarChart data={stateBarData} layout="vertical" barCategoryGap="18%">
               <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
               <XAxis type="number" tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} label={{ value: "Number of Incidents", position: "insideBottom", offset: -5, fontSize: 11, fill: chartTextColor }} />

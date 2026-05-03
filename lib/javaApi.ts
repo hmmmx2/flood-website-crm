@@ -8,6 +8,8 @@
 //   JAVA_API_URL  — CRM Spring Boot (`flood-service-crm`, default port 4002).
 //                   Docker: http://crm-api:4002 (see flood-service-crm/docker-compose.yml)
 //                   Local:  http://localhost:4002
+//   COMMUNITY_JAVA_API_URL — flood-service-community (threaded comments + admin
+//                   moderation). Defaults to JAVA_API_URL when omitted.
 // ─────────────────────────────────────────────────────────────
 
 // Normalise the URL: if the env var was set without a protocol (e.g. in
@@ -25,6 +27,11 @@ const JAVA_API_URL = normaliseUrl(
   "http://localhost:4002"
 );
 
+/** flood-service-community — comment threading / moderation APIs when deployed separately from CRM. */
+const COMMUNITY_JAVA_API_URL = normaliseUrl(
+  process.env.COMMUNITY_JAVA_API_URL || JAVA_API_URL
+);
+
 type FetchOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -34,11 +41,12 @@ type FetchOptions = {
   timeoutMs?: number;
 };
 
-export async function javaFetch<T>(
+async function javaFetchWithBase<T>(
+  base: string,
   path: string,
   { method = "GET", body, token, revalidate = 0, timeoutMs = 10_000 }: FetchOptions = {}
 ): Promise<T> {
-  const url = `${JAVA_API_URL}${path}`;
+  const url = `${base}${path}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -67,6 +75,18 @@ export async function javaFetch<T>(
   if (res.status === 204) return undefined as unknown as T;
 
   return res.json() as Promise<T>;
+}
+
+export async function javaFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  return javaFetchWithBase<T>(JAVA_API_URL, path, opts);
+}
+
+/**
+ * Calls {@link COMMUNITY_JAVA_API_URL} (defaults to {@link JAVA_API_URL}).
+ * Use for community comment admin routes backed by `flood-service-community`.
+ */
+export async function communityJavaFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  return javaFetchWithBase<T>(COMMUNITY_JAVA_API_URL, path, opts);
 }
 
 // ── Typed helpers ──────────────────────────────────────────────

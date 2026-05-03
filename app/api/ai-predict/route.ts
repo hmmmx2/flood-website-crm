@@ -22,7 +22,12 @@ export async function GET(req: NextRequest) {
 
     if (!upstream.ok) {
       return NextResponse.json(
-        { success: false, error: "AI service unavailable", fallback: true },
+        {
+          success: false,
+          error: "AI service unavailable",
+          fallback: true,
+          hint: "Set AI_API_URL on the server (e.g. Vercel env) to your flood-ai-prediction base URL.",
+        },
         { status: 502 }
       );
     }
@@ -31,7 +36,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, ...data });
   } catch {
     return NextResponse.json(
-      { success: false, error: "AI service offline", fallback: true },
+      {
+        success: false,
+        error: "AI service offline",
+        fallback: true,
+        hint: "AI_API_URL unreachable or timed out — verify the URL and that flood-ai-prediction is running.",
+      },
       { status: 503 }
     );
   }

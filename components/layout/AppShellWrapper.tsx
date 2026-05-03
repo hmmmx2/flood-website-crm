@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -55,7 +55,7 @@ function AccessDenied() {
           Access Denied
         </h2>
         <p className="mt-2 text-sm text-dark-charcoal/70 dark:text-dark-text-secondary">
-          You don't have permission to access this page.
+          You do not have permission to access this page.
         </p>
         <p className="mt-1 text-xs text-dark-charcoal/50 dark:text-dark-text-muted">
           Contact your administrator if you believe this is an error.
