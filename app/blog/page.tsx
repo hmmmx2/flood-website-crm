@@ -39,6 +39,16 @@ type BlogForm = {
 // Canonical list must match flood-website-community & flood-mobile (incl. General).
 const CATEGORIES = ["General", "Flood Alert", "Safety Tips", "Community", "Updates", "Research"];
 
+function mergeCategoryTabs(fromApi: string[]): string[] {
+  const list = fromApi.filter((c) => c != null && String(c).trim() !== "");
+  const set = new Set(list);
+  const ordered = CATEGORIES.filter((c) => set.has(c));
+  const extras = list
+    .filter((c) => !CATEGORIES.includes(c))
+    .sort((a, b) => a.localeCompare(b));
+  return ["All", ...ordered, ...extras];
+}
+
 const EMPTY_FORM: BlogForm = {
   title: "",
   body: "",
@@ -375,6 +385,7 @@ export default function BlogPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterCat, setFilterCat] = useState("All");
+  const [filterTabs, setFilterTabs] = useState<string[]>(() => ["All", ...CATEGORIES]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<BlogDto | null>(null);
@@ -408,8 +419,27 @@ export default function BlogPage() {
 
   useEffect(() => { void loadBlogs(); }, [loadBlogs]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/blogs/categories", { cache: "no-store" });
+        if (!res.ok) return;
+        const data: unknown = await res.json();
+        if (Array.isArray(data)) setFilterTabs(mergeCategoryTabs(data as string[]));
+      } catch {
+        /* keep defaults */
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (filterCat !== "All" && !filterTabs.includes(filterCat)) setFilterCat("All");
+  }, [filterTabs, filterCat]);
+
   const displayed = blogs.filter(b => {
-    const matchCat = filterCat === "All" || b.category === filterCat;
+    const bc = (b.category ?? "").trim().toLowerCase();
+    const fc = filterCat.trim().toLowerCase();
+    const matchCat = filterCat === "All" || bc === fc;
     const matchSearch = !search.trim() ||
       b.title.toLowerCase().includes(search.toLowerCase()) ||
       b.body.toLowerCase().includes(search.toLowerCase());
@@ -561,7 +591,7 @@ export default function BlogPage() {
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {["All", ...CATEGORIES].map(cat => (
+          {filterTabs.map(cat => (
             <button
               key={cat}
               onClick={() => setFilterCat(cat)}
