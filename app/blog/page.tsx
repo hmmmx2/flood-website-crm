@@ -400,14 +400,15 @@ export default function BlogPage() {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const loadBlogs = useCallback(async () => {
+  const loadBlogs = useCallback(async (category = "All") => {
     if (!accessToken) {
       setLoading(false);
       return;
     }
     setLoading(true); setError("");
     try {
-      const res = await authFetch("/api/blogs?size=100", accessToken, silentRefresh);
+      const catParam = category !== "All" ? `&category=${encodeURIComponent(category)}` : "";
+      const res = await authFetch(`/api/blogs?size=100${catParam}`, accessToken, silentRefresh);
       const data = await parseJsonResponse<PageDto>(res);
       setBlogs(data.content ?? []);
     } catch (e) {
@@ -418,6 +419,11 @@ export default function BlogPage() {
   }, [accessToken, silentRefresh]);
 
   useEffect(() => { void loadBlogs(); }, [loadBlogs]);
+
+  const handleFilterCat = (cat: string) => {
+    setFilterCat(cat);
+    void loadBlogs(cat);
+  };
 
   useEffect(() => {
     void (async () => {
@@ -436,14 +442,13 @@ export default function BlogPage() {
     if (filterCat !== "All" && !filterTabs.includes(filterCat)) setFilterCat("All");
   }, [filterTabs, filterCat]);
 
+  // Category already filtered server-side; only apply text search client-side
   const displayed = blogs.filter(b => {
-    const bc = (b.category ?? "").trim().toLowerCase();
-    const fc = filterCat.trim().toLowerCase();
-    const matchCat = filterCat === "All" || bc === fc;
-    const matchSearch = !search.trim() ||
+    if (!search.trim()) return true;
+    return (
       b.title.toLowerCase().includes(search.toLowerCase()) ||
-      b.body.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+      b.body.toLowerCase().includes(search.toLowerCase())
+    );
   });
 
   const handleSave = async (form: BlogForm) => {
@@ -474,7 +479,7 @@ export default function BlogPage() {
       await parseJsonResponse(res);
       showToast("Article published successfully");
     }
-    await loadBlogs();
+    await loadBlogs(filterCat);
   };
 
   const handleDelete = async (blog: BlogDto) => {
@@ -594,7 +599,7 @@ export default function BlogPage() {
           {filterTabs.map(cat => (
             <button
               key={cat}
-              onClick={() => setFilterCat(cat)}
+              onClick={() => handleFilterCat(cat)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold transition ${
                 filterCat === cat
                   ? "bg-blue-600 text-white"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { javaFetch } from "@/lib/javaApi";
+import { withCache, CACHE_TTL } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -10,8 +11,14 @@ export async function GET(req: NextRequest) {
     const page     = searchParams.get("page")     ?? "0";
     const size     = searchParams.get("size")     ?? "50";
     const category = searchParams.get("category") ?? "";
-    const catParam = category ? `&category=${encodeURIComponent(category)}` : "";
-    const data = await javaFetch<unknown>(`/blogs?page=${page}&size=${size}${catParam}`);
+
+    const cat = category && category !== "All" ? category : "all";
+    const catParam = cat !== "all" ? `&category=${encodeURIComponent(cat)}` : "";
+    const cacheKey = `crm:blogs:${page}:${size}:${cat}`;
+
+    const data = await withCache(cacheKey, CACHE_TTL.blogs, () =>
+      javaFetch<unknown>(`/blogs?page=${page}&size=${size}${catParam}`),
+    );
     return NextResponse.json(data);
   } catch (error) {
     const status = (error as { status?: number }).status ?? 500;
