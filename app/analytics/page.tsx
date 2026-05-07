@@ -28,14 +28,18 @@ import {
   RISK_LABELS,
   RISK_FT,
   eventCountToLevel,
-  riskColor,
-  riskTickLabel,
   isEmptyChartData,
   generateDailyFallback,
   generateWeeklyFallback,
   generateMonthlyFallback,
-  riskProbabilities,
+  generateMalaysiaStateFallback,
+  isFloodByStateSparse,
 } from "@/lib/floodRiskMock";
+import FloodRiskChart from "@/components/charts/FloodRiskChart";
+import {
+  ChartTooltipShell,
+  TooltipRow,
+} from "@/components/charts/ChartTooltip";
 
 // ─── Types matching AnalyticsDataDto ────────────────────────────────────────
 interface StatDto        { label: string; value: string; icon: string; trend: string; }
@@ -106,11 +110,9 @@ export default function AnalyticsPage() {
   // for the bubble scatter map (analytics response only has nodeId, level, status).
   const [nodeGpsMap, setNodeGpsMap] = useState<Record<string, { latitude: number; longitude: number }>>({});
 
-  // Chart colors
+  // Chart axis / grid colours. Tooltip surface is owned by ChartTooltipShell.
   const chartTextColor  = isDark ? "#a0a0a0" : "#4E4B4B";
   const chartGridColor  = isDark ? "#2d3a5a" : "#E5E5E5";
-  const tooltipBg       = isDark ? "#16213e" : "#ffffff";
-  const tooltipBorder   = isDark ? "#2d3a5a" : "#BFBFBF";
 
   useEffect(() => {
     if (!accessToken) return;
@@ -174,10 +176,13 @@ export default function AnalyticsPage() {
     rawLevel: n.level,
   }));
 
-  const stateBarData = (data?.floodByState ?? []).map((s) => ({
-    name: s.state,
-    total: s.total,
-  }));
+  // Total Flood Incidents by State — fall back to a Malaysia-wide
+  // distribution when the live API has 0 or 1 states populated, otherwise
+  // an admin only ever sees a single Sarawak bar with no national context.
+  // Live data wins as soon as multiple states report.
+  const stateBarData = isFloodByStateSparse(data?.floodByState)
+    ? generateMalaysiaStateFallback().map((s) => ({ name: s.state, total: s.total }))
+    : (data?.floodByState ?? []).map((s) => ({ name: s.state, total: s.total }));
 
   // BUG-ANAL01 FIX: Join waterLevelByNode with real GPS from /api/nodes.
   // Only nodes whose node_id is in nodeGpsMap are plotted (no fake offsets).
@@ -335,66 +340,18 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Chart — gradient area under bars + XGBoost-style probability tooltip */}
+          {/* Chart — shared FloodRiskChart, identical to /dashboard. The
+              showThresholds prop adds dashed Alert / Warning / Critical
+              reference lines so admins can see at a glance which buckets
+              have crossed each alarm level (evacuation-decision context). */}
           <div className="mt-4 h-56 w-full min-w-0">
-            <ResponsiveContainer width="100%" height={224} minWidth={0}>
-              <AreaChart data={filteredRiskData} barCategoryGap="18%">
-                <defs>
-                  <linearGradient id="floodRiskGradientAnalytics" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor="#dc2626" stopOpacity={0.55} />
-                    <stop offset="40%"  stopColor="#f97316" stopOpacity={0.35} />
-                    <stop offset="75%"  stopColor="#f59e0b" stopOpacity={0.18} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
-                <XAxis dataKey="name" tick={{ fontSize: 9, fill: chartTextColor }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 3]} ticks={[0, 1, 2, 3]} tickFormatter={riskTickLabel} tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} width={58} />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.[0]) return null;
-                    const p = payload[0].payload as { level: number; count?: number };
-                    const v = Number(p.level ?? 0);
-                    const probs = riskProbabilities(p.count ?? 0);
-                    return (
-                      <div style={{ background: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B", border: `1px solid ${tooltipBorder}`, borderRadius: 12, padding: "10px 12px", fontSize: 12, minWidth: 180 }}>
-                        <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: riskColor(v) }} />
-                          <span>Level {v} — {RISK_LABELS[v] ?? "Unknown"} ({RISK_FT[v] ?? ""})</span>
-                        </div>
-                        <div style={{ marginTop: 4, paddingTop: 6, borderTop: `1px solid ${tooltipBorder}`, opacity: 0.85 }}>
-                          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>XGBoost Probabilities</div>
-                          {(["Normal", "Alert", "Warning", "Critical"] as const).map((k, idx) => (
-                            <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 1, background: RISK_COLORS[idx] }} />
-                                {k}
-                              </span>
-                              <span style={{ fontVariantNumeric: "tabular-nums" }}>{(probs[k] * 100).toFixed(0)}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="level"
-                  stroke="#f97316"
-                  strokeWidth={2}
-                  fill="url(#floodRiskGradientAnalytics)"
-                  isAnimationActive={false}
-                  connectNulls
-                  dot={(props) => {
-                    const { cx, cy, payload } = props as { cx: number; cy: number; payload: { level: number | null } };
-                    if (payload.level === null || cx == null || cy == null) return <g />;
-                    return <circle cx={cx} cy={cy} r={4} fill={riskColor(payload.level)} stroke="#fff" strokeWidth={1.5} />;
-                  }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <FloodRiskChart
+              data={filteredRiskData}
+              scale={riskScale}
+              isDark={isDark}
+              height={224}
+              showThresholds
+            />
           </div>
 
           {/* Legend */}
@@ -426,8 +383,24 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} label={{ value: "Node ID", position: "insideBottom", offset: -5, fontSize: 11, fill: chartTextColor }} />
                 <YAxis tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} domain={[0, 4.5]} label={{ value: "Level (m)", angle: -90, position: "insideLeft", fontSize: 11, fill: chartTextColor }} />
                 <Tooltip
-                  contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                  formatter={(value) => [`${value} m`, "Water Level"]}
+                  cursor={{ fill: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const p = payload[0].payload as { rawLevel: number; level: number };
+                    return (
+                      <ChartTooltipShell isDark={isDark} title={`Node ${label}`}>
+                        <TooltipRow
+                          label="Water Level"
+                          value={`${p.level} m`}
+                          swatchHex={levelColor(p.rawLevel)}
+                        />
+                        <TooltipRow
+                          label="Severity"
+                          value={`${RISK_LABELS[p.rawLevel] ?? "—"} (${RISK_FT[p.rawLevel] ?? ""})`}
+                        />
+                      </ChartTooltipShell>
+                    );
+                  }}
                 />
                 <Legend verticalAlign="top" height={36} iconType="square" wrapperStyle={{ fontSize: 12, fontWeight: 500, color: chartTextColor }} />
                 <Bar dataKey="level" name="Water Level" radius={[6, 6, 0, 0]}>
@@ -474,8 +447,20 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                  formatter={(value) => [`${value}`, "Events"]}
+                  cursor={{ fill: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const v = Number(payload[0].value ?? 0);
+                    return (
+                      <ChartTooltipShell isDark={isDark} title={label}>
+                        <TooltipRow
+                          label="Events"
+                          value={v.toLocaleString()}
+                          swatchHex="#1d4ed8"
+                        />
+                      </ChartTooltipShell>
+                    );
+                  }}
                 />
                 <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: 12, fontWeight: 500, color: chartTextColor }} />
                 <Area type="monotone" dataKey="events" name="Events" stroke="#1d4ed8" strokeWidth={2} fill="url(#colorMonthly)" dot={{ r: 4, fill: "#1d4ed8" }} activeDot={{ r: 6 }} />
@@ -525,12 +510,22 @@ export default function AnalyticsPage() {
                   <ZAxis type="number" dataKey="z" range={[60, 400]} />
                   <Tooltip
                     cursor={{ strokeDasharray: "3 3" }}
-                    contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                    formatter={(value: unknown, name: unknown) => {
-                      if (name === "z") return null;
-                      const label =
-                        typeof value === "number" ? value.toFixed(4) : String(value ?? "");
-                      return [label, String(name ?? "")];
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.[0]) return null;
+                      const p = payload[0].payload as {
+                        x: number; y: number; name: string; level: number;
+                      };
+                      return (
+                        <ChartTooltipShell isDark={isDark} title={`Node ${p.name}`}>
+                          <TooltipRow
+                            label="Severity"
+                            value={`${RISK_LABELS[p.level] ?? "—"} (${RISK_FT[p.level] ?? ""})`}
+                            swatchHex={levelColor(p.level)}
+                          />
+                          <TooltipRow label="Latitude"  value={`${p.y.toFixed(4)}°N`} />
+                          <TooltipRow label="Longitude" value={`${p.x.toFixed(4)}°E`} />
+                        </ChartTooltipShell>
+                      );
                     }}
                   />
                   <Scatter name="Nodes" data={bubbleData}>
@@ -557,14 +552,34 @@ export default function AnalyticsPage() {
         <p className={`text-xs uppercase tracking-wide transition-colors ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>
           Cumulative alert events per state
         </p>
-        <div className="mt-4 h-64 w-full min-w-0">
-          <ResponsiveContainer width="100%" height={256} minWidth={0}>
-            <BarChart data={stateBarData} layout="vertical" barCategoryGap="18%">
+        <div className="mt-4 h-[420px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <BarChart data={stateBarData} layout="vertical" barCategoryGap="14%">
               <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
-              <XAxis type="number" tick={{ fontSize: 10, fill: chartTextColor }} axisLine={false} tickLine={false} label={{ value: "Number of Incidents", position: "insideBottom", offset: -5, fontSize: 11, fill: chartTextColor }} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chartTextColor }} axisLine={false} tickLine={false} width={90} />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 10, fill: chartTextColor }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => v.toLocaleString()}
+                label={{ value: "Number of Incidents", position: "insideBottom", offset: -5, fontSize: 11, fill: chartTextColor }}
+              />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chartTextColor }} axisLine={false} tickLine={false} width={130} />
               <Tooltip
-                contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
+                cursor={{ fill: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.[0]) return null;
+                  const v = Number(payload[0].value ?? 0);
+                  return (
+                    <ChartTooltipShell isDark={isDark} title={String(label)}>
+                      <TooltipRow
+                        label="Total Incidents"
+                        value={v.toLocaleString()}
+                        swatchHex="#1d4ed8"
+                      />
+                    </ChartTooltipShell>
+                  );
+                }}
               />
               <Legend verticalAlign="top" height={36} iconType="square" wrapperStyle={{ fontSize: 12, fontWeight: 500, color: chartTextColor }} />
               <Bar dataKey="total" name="Total Incidents" fill="#1d4ed8" radius={[0, 6, 6, 0]} />

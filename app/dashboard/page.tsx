@@ -3,12 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
-  Area,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  ComposedChart,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -28,15 +25,13 @@ import {
   RISK_LABELS,
   RISK_FT,
   eventCountToLevel,
-  riskColor,
-  riskTickLabel,
   isEmptyChartData,
   generateDailyFallback,
   generateWeeklyFallback,
   generateMonthlyFallback,
   generateHourlyFallback,
-  riskProbabilities,
 } from "@/lib/floodRiskMock";
+import FloodRiskChart from "@/components/charts/FloodRiskChart";
 
 interface AnalyticsData {
   stats: { label: string; value: string; trend: string }[];
@@ -719,82 +714,14 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Chart — Composed: gradient area for the risk curve + bars for
-              the discrete classification on top. Tooltip shows the XGBoost
-              probability vector for the hovered bucket. */}
+          {/* Chart — shared FloodRiskChart used by both /dashboard and
+              /analytics so the visualisation stays byte-identical. */}
           <div className="mt-4 h-60 w-full min-w-0">
-            <ResponsiveContainer width="100%" height={240} minWidth={0}>
-              <ComposedChart data={filteredRiskData} barCategoryGap="22%">
-                <defs>
-                  <linearGradient id="floodRiskGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor="#dc2626" stopOpacity={0.55} />
-                    <stop offset="40%"  stopColor="#f97316" stopOpacity={0.35} />
-                    <stop offset="75%"  stopColor="#f59e0b" stopOpacity={0.18} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: riskScale === "hourly" ? 8 : 10, fill: chartTextColor }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={riskScale === "hourly" ? 2 : 0}
-                />
-                <YAxis
-                  domain={[0, 3]}
-                  ticks={[0, 1, 2, 3]}
-                  tickFormatter={riskTickLabel}
-                  tick={{ fontSize: 10, fill: chartTextColor }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={58}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: `1px solid ${tooltipBorder}`, fontSize: 12, backgroundColor: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B" }}
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.[0]) return null;
-                    const p = payload[0].payload as { level: number; count?: number };
-                    const v = Number(p.level ?? 0);
-                    const probs = riskProbabilities(p.count ?? 0);
-                    return (
-                      <div style={{ background: tooltipBg, color: isDark ? "#e8e8e8" : "#4E4B4B", border: `1px solid ${tooltipBorder}`, borderRadius: 12, padding: "10px 12px", fontSize: 12, minWidth: 180 }}>
-                        <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: riskColor(v) }} />
-                          <span>Level {v} — {RISK_LABELS[v] ?? "Unknown"} ({RISK_FT[v] ?? ""})</span>
-                        </div>
-                        <div style={{ marginTop: 4, paddingTop: 6, borderTop: `1px solid ${tooltipBorder}`, opacity: 0.85 }}>
-                          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>XGBoost Probabilities</div>
-                          {(["Normal", "Alert", "Warning", "Critical"] as const).map((k, idx) => (
-                            <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 1, background: RISK_COLORS[idx] }} />
-                                {k}
-                              </span>
-                              <span style={{ fontVariantNumeric: "tabular-nums" }}>{(probs[k] * 100).toFixed(0)}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="level"
-                  stroke="none"
-                  fill="url(#floodRiskGradient)"
-                  isAnimationActive={false}
-                  connectNulls
-                />
-                <Bar dataKey="level" name="Flood Risk Level" radius={[5, 5, 0, 0]} maxBarSize={40}>
-                  {filteredRiskData.map((entry, i) => (
-                    <Cell key={i} fill={riskColor(entry.level)} />
-                  ))}
-                </Bar>
-              </ComposedChart>
-            </ResponsiveContainer>
+            <FloodRiskChart
+              data={filteredRiskData}
+              scale={riskScale}
+              isDark={isDark}
+            />
           </div>
 
           {/* Legend */}

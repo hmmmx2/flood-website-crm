@@ -181,7 +181,7 @@ export default function TopBar({
               onClick={onToggleSidebar}
               aria-pressed={!isSidebarCollapsed}
               aria-label="Toggle sidebar"
-              className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-blue transition hover:bg-light-blue/40"
+              className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-blue dark:text-[var(--color-brand-soft)] transition hover:bg-light-blue/40 dark:hover:bg-[var(--color-hover)]"
             >
               <HamburgerIcon className="h-6 w-6" />
             </button>
@@ -192,7 +192,7 @@ export default function TopBar({
               onClick={onToggleMobileMenu}
               aria-pressed={isMobileMenuOpen}
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-              className={`flex md:hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-primary-blue transition hover:bg-light-blue/40 ${
+              className={`flex md:hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-primary-blue dark:text-[var(--color-brand-soft)] transition hover:bg-light-blue/40 dark:hover:bg-[var(--color-hover)] ${
                 isDark ? "border-dark-border" : "border-light-blue"
               }`}
             >
@@ -227,7 +227,7 @@ export default function TopBar({
                 >
                   Flood Management
                 </p>
-                <p className="text-xs uppercase tracking-wide text-primary-blue">
+                <p className="text-xs uppercase tracking-wide text-primary-blue dark:text-[var(--color-brand-soft)]">
                   IoT Command Center
                 </p>
               </div>
