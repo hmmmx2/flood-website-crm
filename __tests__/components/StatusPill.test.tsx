@@ -3,8 +3,8 @@ import StatusPill from '@/components/common/StatusPill';
 
 describe('StatusPill', () => {
   it('renders with status text', () => {
-    render(<StatusPill status="Safe" />);
-    expect(screen.getByText('Safe')).toBeInTheDocument();
+    render(<StatusPill status="Normal" />);
+    expect(screen.getByText('Normal')).toBeInTheDocument();
   });
 
   it('renders with variant prop', () => {
@@ -32,7 +32,7 @@ describe('StatusPill', () => {
   });
 
   it('has accessible dot indicator', () => {
-    const { container } = render(<StatusPill status="Safe" />);
+    const { container } = render(<StatusPill status="Normal" />);
     const dot = container.querySelector('span[aria-hidden="true"]');
     expect(dot).toBeInTheDocument();
   });

@@ -46,12 +46,14 @@ export function getNodeStatus(isDead: boolean): {
     : { label: "Online", color: "status-green" };
 }
 
-// Status hex colors for map markers
+// Status hex colors for map markers — aligned with RISK_COLORS in
+// lib/floodRiskMock.ts and statusHexMap in lib/data.ts so the entire CRM
+// (Dashboard, Sensors, Map, Analytics, Alerts) speaks one palette.
 export const statusHexMap: Record<number, string> = {
-  0: "#56e40a", // status-green - Normal
-  1: "#ffd54f", // status-warning-1 - Alert
-  2: "#ff9f1c", // status-warning-2 - Warning
-  3: "#d7263d", // status-danger - Critical
+  0: "#22c55e", // green-500  — Normal
+  1: "#f59e0b", // amber-500  — Alert
+  2: "#f97316", // orange-500 — Warning
+  3: "#dc2626", // red-600    — Critical
 };
 
 // Offline node color

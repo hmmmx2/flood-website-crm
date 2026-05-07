@@ -108,7 +108,7 @@ const STATUS_LEGEND = [
   { label: "Normal",  description: "No flood risk",           water_level: 0, color: "bg-status-green text-pure-white"    },
   { label: "Alert",   description: "Minor flooding possible",  water_level: 1, color: "bg-status-warning-1 text-dark-charcoal" },
   { label: "Warning", description: "Moderate flood risk",      water_level: 2, color: "bg-status-warning-2 text-pure-white" },
-  { label: "Danger",  description: "Severe flooding",          water_level: 3, color: "bg-status-danger text-pure-white"   },
+  { label: "Critical", description: "Severe flooding",         water_level: 3, color: "bg-status-danger text-pure-white"   },
 ];
 
 // ── node helpers ─────────────────────────────────────────────────────────────

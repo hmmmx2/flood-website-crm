@@ -41,7 +41,7 @@ function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
   };
 }
 
-type AlertType = "DANGER" | "WARNING" | "INACTIVE" | "NEW NODE" | "NORMAL";
+type AlertType = "CRITICAL" | "WARNING" | "INACTIVE" | "NEW NODE" | "NORMAL";
 
 type GeneratedAlert = {
   id: string;
@@ -342,7 +342,7 @@ function CalendarDropdown({
 
 const typeFilterOptions = [
   { id: "all", label: "All Alerts" },
-  { id: "danger", label: "Danger Only" },
+  { id: "critical", label: "Critical Only" },
   { id: "warning", label: "Warning Only" },
   { id: "inactive", label: "Inactive" },
   { id: "newnode", label: "New Nodes" },
@@ -355,11 +355,14 @@ const sortOrderOptions = [
   { id: "severity-low", label: "Low → High Severity" },
 ];
 
+// Severity tones aligned with the project-wide emergency palette
+// (Critical=red, Warning=orange, Alert=amber, Normal=green) so this page
+// matches Dashboard/Analytics/Sensors/Map.
 const alertTone = {
-  DANGER: {
-    border: "border-primary-blue",
-    background: "bg-light-blue/60 dark:bg-primary-blue/20",
-    label: "text-primary-blue",
+  CRITICAL: {
+    border: "border-status-danger",
+    background: "bg-status-danger/10 dark:bg-status-danger/20",
+    label: "text-status-danger",
     icon: "",
   },
   WARNING: {
@@ -369,9 +372,9 @@ const alertTone = {
     icon: "",
   },
   "NEW NODE": {
-    border: "border-blue",
-    background: "bg-light-blue dark:bg-blue/20",
-    label: "text-blue",
+    border: "border-primary-blue",
+    background: "bg-light-blue/60 dark:bg-primary-blue/20",
+    label: "text-primary-blue",
     icon: "",
   },
   INACTIVE: {
@@ -389,7 +392,7 @@ const alertTone = {
 };
 
 const alertSeverity: Record<AlertType, number> = {
-  DANGER: 4,
+  CRITICAL: 4,
   WARNING: 3,
   INACTIVE: 2,
   "NEW NODE": 1,
@@ -399,7 +402,7 @@ const alertSeverity: Record<AlertType, number> = {
 // Helper to generate alert type based on node data
 function getAlertType(node: NodeData): AlertType {
   if (node.is_dead) return "INACTIVE";
-  if (node.current_level >= 3) return "DANGER";
+  if (node.current_level >= 3) return "CRITICAL";
   if (node.current_level >= 2) return "WARNING";
   
   // Check if node is new (created within last 24 hours)
@@ -414,7 +417,7 @@ function getAlertType(node: NodeData): AlertType {
 // Helper to generate alert message
 function getAlertMessage(node: NodeData, alertType: AlertType): string {
   switch (alertType) {
-    case "DANGER":
+    case "CRITICAL":
       return `Critical water level detected! Node ${node.node_id} is reporting ${node.current_level}ft water level. Immediate attention required.`;
     case "WARNING":
       return `Elevated water level detected at Node ${node.node_id}. Current level: ${node.current_level}ft. Monitor closely.`;
@@ -537,8 +540,8 @@ export default function AlertsPage() {
     let subset = [...alerts];
 
     // Filter by alert type
-    if (activeTypeFilter === "danger") {
-      subset = subset.filter((alert) => alert.alert_type === "DANGER");
+    if (activeTypeFilter === "critical") {
+      subset = subset.filter((alert) => alert.alert_type === "CRITICAL");
     } else if (activeTypeFilter === "warning") {
       subset = subset.filter((alert) => alert.alert_type === "WARNING");
     } else if (activeTypeFilter === "inactive") {
@@ -585,7 +588,7 @@ export default function AlertsPage() {
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     return {
-      critical: subset.filter((a) => a.alert_type === "DANGER" || a.alert_type === "WARNING"),
+      critical: subset.filter((a) => a.alert_type === "CRITICAL" || a.alert_type === "WARNING"),
       today: subset.filter((a) => {
         const alertDate = new Date(a.timestamp);
         return alertDate >= today;
@@ -606,7 +609,7 @@ export default function AlertsPage() {
   const stats = useMemo(() => {
     return {
       total: alerts.length,
-      danger: alerts.filter((a) => a.alert_type === "DANGER").length,
+      critical: alerts.filter((a) => a.alert_type === "CRITICAL").length,
       warning: alerts.filter((a) => a.alert_type === "WARNING").length,
       inactive: alerts.filter((a) => a.alert_type === "INACTIVE").length,
       newNodes: alerts.filter((a) => a.alert_type === "NEW NODE").length,
@@ -754,9 +757,9 @@ export default function AlertsPage() {
           <p className={`text-2xl font-bold ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>{stats.total}</p>
           <p className={`text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Total Nodes</p>
         </div>
-        <div className={`rounded-2xl border p-4 border-primary-blue/30 ${isDark ? "bg-primary-blue/10" : "bg-light-blue/30"}`}>
-          <p className="text-2xl font-bold text-primary-blue">{stats.danger}</p>
-          <p className={`text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Danger</p>
+        <div className={`rounded-2xl border p-4 border-status-danger/30 ${isDark ? "bg-status-danger/10" : "bg-status-danger/10"}`}>
+          <p className="text-2xl font-bold text-status-danger">{stats.critical}</p>
+          <p className={`text-xs ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Critical</p>
         </div>
         <div className={`rounded-2xl border p-4 border-status-warning-2/30 ${isDark ? "bg-status-warning-2/10" : "bg-status-warning-2/15"}`}>
           <p className="text-2xl font-bold text-status-warning-2">{stats.warning}</p>
@@ -819,14 +822,14 @@ export default function AlertsPage() {
         )}
       </div>
 
-      {/* Critical Alerts (Danger & Warning) */}
+      {/* Critical Alerts (Critical & Warning) */}
       {filteredAndSortedAlerts.critical.length > 0 && (
-        <section className={`space-y-4 rounded-3xl border-2 border-primary-blue/50 p-5 shadow-sm ${isDark ? "bg-primary-blue/5" : "bg-light-blue/20"}`}>
+        <section className={`space-y-4 rounded-3xl border-2 border-status-danger/50 p-5 shadow-sm ${isDark ? "bg-status-danger/5" : "bg-status-danger/10"}`}>
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-primary-blue">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-status-danger">
               Critical Alerts
             </h2>
-            <span className="rounded-full bg-primary-blue px-3 py-1 text-xs font-bold text-pure-white">
+            <span className="rounded-full bg-status-danger px-3 py-1 text-xs font-bold text-pure-white">
               {filteredAndSortedAlerts.critical.length} ACTIVE
             </span>
           </div>

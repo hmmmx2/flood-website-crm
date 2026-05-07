@@ -497,7 +497,7 @@ export default function SettingsPage() {
                       onChange={(e) => handleChange("dangerAlertEmail", e.target.checked)}
                       className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                     />
-                    <span className={`text-sm ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Email for Danger-level alerts</span>
+                    <span className={`text-sm ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>Email for Critical-level alerts</span>
                   </label>
                   <label className="flex items-center gap-3">
                     <input

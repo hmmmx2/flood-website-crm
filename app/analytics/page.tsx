@@ -59,10 +59,10 @@ const LEVEL_TO_METERS: Record<number, number> = { 0: 0.0, 1: 1.0, 2: 2.5, 3: 4.0
 // Aligned with the shared RISK_COLORS in lib/floodRiskMock so Dashboard and
 // Analytics speak the same visual language.
 function levelColor(level: number): string {
-  if (level >= 3)  return "#dc2626"; // red-600    — Critical / Danger
+  if (level >= 3)  return "#dc2626"; // red-600    — Critical
   if (level === 2) return "#f97316"; // orange-500 — Warning
   if (level === 1) return "#f59e0b"; // amber-500  — Alert
-  return "#22c55e";                  // green-500  — Safe / Dry
+  return "#22c55e";                  // green-500  — Normal
 }
 
 const PIE_COLORS = ["#dc2626", "#f97316", "#f59e0b", "#22c55e"];

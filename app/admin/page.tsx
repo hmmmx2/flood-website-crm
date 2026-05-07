@@ -448,7 +448,7 @@ export default function AccountSettingsPage() {
                     className="h-4 w-4 rounded border-light-grey text-primary-blue focus:ring-primary-blue/40"
                   />
                   <span className={`text-sm transition-colors ${isDark ? "text-dark-text" : "text-dark-charcoal"}`}>
-                    Email alerts for danger-level events
+                    Email alerts for critical-level events
                   </span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
