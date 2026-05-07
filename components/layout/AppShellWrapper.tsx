@@ -5,7 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 import { useAuth } from "@/lib/AuthContext";
+import { useTheme } from "@/lib/ThemeContext";
 import { canAccessPage } from "@/lib/permissions";
+import { SensorStreamProvider } from "@/components/providers/SensorStreamProvider";
 
 // Dynamically import AppShell with no SSR to prevent prerender issues
 const AppShell = dynamic(() => import("./AppShell"), {
@@ -74,6 +76,7 @@ function AccessDenied() {
 
 export default function AppShellWrapper({ children }: AppShellWrapperProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { isDark } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -124,11 +127,20 @@ export default function AppShellWrapper({ children }: AppShellWrapperProps) {
   // Show AppShell with access denied message if user doesn't have permission
   if (!hasPageAccess) {
     return (
-      <AppShell>
-        <AccessDenied />
-      </AppShell>
+      <SensorStreamProvider isDark={isDark}>
+        <AppShell>
+          <AccessDenied />
+        </AppShell>
+      </SensorStreamProvider>
     );
   }
 
-  return <AppShell>{children}</AppShell>;
+  // Wrap the authed shell with the real-time flood-alert stream so the
+  // top-right notification dock + audio chime + browser Notification
+  // surface flood alerts on every CRM page (Dashboard, Sensors, Map, etc.)
+  return (
+    <SensorStreamProvider isDark={isDark}>
+      <AppShell>{children}</AppShell>
+    </SensorStreamProvider>
+  );
 }
