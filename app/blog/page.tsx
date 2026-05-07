@@ -604,7 +604,7 @@ export default function BlogPage() {
       ) : error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
           <p className="text-red-700 font-semibold">{error}</p>
-          <button onClick={loadBlogs} className="mt-3 text-sm text-red-600 underline">Retry</button>
+          <button onClick={() => void loadBlogs()} className="mt-3 text-sm text-red-600 underline">Retry</button>
         </div>
       ) : displayed.length === 0 ? (
         <div className="rounded-xl border p-16 text-center border-[var(--color-border)] bg-[var(--color-card)]">
