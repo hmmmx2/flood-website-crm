@@ -72,7 +72,7 @@ function levelColor(level: number): string {
 const PIE_COLORS = ["#dc2626", "#f97316", "#f59e0b", "#22c55e"];
 
 const bubbleLegendData = [
-  { value: "Safe (0 ft)",       color: "#22c55e" },
+  { value: "Normal (0 ft)",     color: "#22c55e" },
   { value: "Alert (1 ft)",      color: "#f59e0b" },
   { value: "Warning (2 ft)",    color: "#f97316" },
   { value: "Critical (3+ ft)",  color: "#dc2626" },
