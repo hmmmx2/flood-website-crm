@@ -1,25 +1,34 @@
 // GET /api/sse/sensors
 // Pipes the Spring Boot SSE stream to the browser so the client never
 // needs to know the backend URL or deal with CORS.
+//
+// IMPORTANT: the live-sensor SSE endpoint is hosted on the COMMUNITY
+// Java service, not the CRM service. The CRM's JAVA_API_URL points at
+// flood-service-crm, so naively forwarding there would 404 → 502. We
+// resolve the community service URL the same way the UAT survey BFF
+// does: explicit COMMUNITY_JAVA_API_URL when set, otherwise the
+// production community URL (never the CRM URL).
 
 import { NextResponse } from "next/server";
-
-import { normaliseJavaApiBase } from "@/lib/normaliseJavaApiBase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const JAVA_API_URL = normaliseJavaApiBase(
-  process.env.JAVA_API_URL ||
-    process.env.NEXT_PUBLIC_JAVA_API_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL,
-  "http://localhost:4002",
-);
+function communityBase(): string {
+  const explicit = process.env.COMMUNITY_JAVA_API_URL;
+  if (explicit && explicit.length > 0) return explicit.replace(/\/$/, "");
+  // JAVA_API_URL in this app points at flood-service-CRM (port 4002 locally,
+  // crm Railway URL in prod) which does NOT host /sse/sensors — community
+  // endpoints belong on flood-service-community. So fall back to the
+  // production community URL rather than ricocheting requests at the CRM
+  // service. For local dev set COMMUNITY_JAVA_API_URL=http://localhost:4001.
+  return "https://flood-service-community-production.up.railway.app";
+}
 
 export async function GET() {
   try {
-    const upstream = await fetch(`${JAVA_API_URL}/sse/sensors`, {
+    const upstream = await fetch(`${communityBase()}/sse/sensors`, {
       headers: {
         Accept: "text/event-stream",
         "Cache-Control": "no-cache",
