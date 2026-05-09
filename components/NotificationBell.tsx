@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/lib/theme/ThemeProvider";
@@ -151,14 +152,22 @@ export default function NotificationBell() {
     };
   }, [open]);
 
-  async function markRead(id: string) {
+  // Returns a Promise so the click handler can await persistence before
+  // navigating. Without that await, navigation can race the POST and the
+  // bell on the next page re-fetches with the row still unread.
+  const markRead = useCallback(async (id: string) => {
     if (!accessToken) return;
     setItems(prev => prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n));
     setUnread(c => Math.max(0, c - 1));
     try {
-      await authFetch(`/api/notifications/${encodeURIComponent(id)}/read`, accessToken, silentRefresh, { method: "POST" });
-    } catch { /* optimistic */ }
-  }
+      await authFetch(
+        `/api/notifications/${encodeURIComponent(id)}/read`,
+        accessToken,
+        silentRefresh,
+        { method: "POST" },
+      );
+    } catch { /* optimistic — local state already cleared */ }
+  }, [accessToken, silentRefresh]);
 
   async function markAllRead() {
     if (!accessToken) return;
@@ -233,7 +242,12 @@ export default function NotificationBell() {
             <ul>
               {items.map(n => (
                 <li key={n.id}>
-                  <Row notification={n} isDark={isDark} onClick={() => void markRead(n.id)} />
+                  <Row
+                    notification={n}
+                    isDark={isDark}
+                    onMarkRead={() => markRead(n.id)}
+                    onClose={() => setOpen(false)}
+                  />
                 </li>
               ))}
             </ul>
@@ -257,15 +271,40 @@ export default function NotificationBell() {
   );
 }
 
-function Row({ notification, isDark, onClick }: { notification: Notification; isDark: boolean; onClick: () => void }) {
+function Row({
+  notification,
+  isDark,
+  onMarkRead,
+  onClose,
+}: {
+  notification: Notification;
+  isDark: boolean;
+  onMarkRead: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const router = useRouter();
   const tone =
     notification.severity === "critical" ? { bg: "rgba(220, 38, 38, 0.12)", dot: "#dc2626" } :
     notification.severity === "warning"  ? { bg: "rgba(249, 115, 22, 0.12)", dot: "#f97316" } :
                                            { bg: "rgba(56, 139, 253, 0.10)", dot: "#388bfd" };
   const isUnread = !notification.readAt;
+  // CRM /flood-map links don't exist — rewrite to /map which is the
+  // CRM operator-side equivalent so a "Open node" deep-link from the
+  // backend works on both web surfaces.
+  const link = notification.link
+    ? notification.link.replace(/^\/flood-map(\?|$)/, "/map$1")
+    : null;
 
   return (
-    <button type="button" onClick={onClick} className="block w-full text-left">
+    <button
+      type="button"
+      onClick={async () => {
+        onClose();
+        await onMarkRead();
+        if (link) router.push(link);
+      }}
+      className="block w-full text-left"
+    >
       <div
         className={`flex gap-3 px-4 py-3 transition ${isDark ? "hover:bg-white/5" : "hover:bg-very-light-grey"}`}
         style={isUnread ? { background: tone.bg } : undefined}

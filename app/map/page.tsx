@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import NodeMap from "@/components/map/NodeMap";
 import { useAuth } from "@/lib/AuthContext";
 import { authFetch } from "@/lib/authFetch";
@@ -180,6 +181,23 @@ export default function FloodMapPage() {
     setFocusNodeId(null);
     requestAnimationFrame(() => setFocusNodeId(nodeId));
   }
+
+  // Deep-link from the bell notification: /map?node=<businessNodeId>
+  // focuses that sensor as soon as the node list lands. We use a ref to
+  // run the focus once per ?node= value so subsequent SSE updates that
+  // re-set `nodes` don't keep snapping the user back after they pan.
+  const search = useSearchParams();
+  const nodeIdParam = search?.get("node") ?? null;
+  const focusedNodeIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!nodeIdParam) return;
+    if (focusedNodeIdRef.current === nodeIdParam) return;
+    if (nodes.length === 0) return;
+    const target = nodes.find((n) => n.node_id === nodeIdParam || n._id === nodeIdParam);
+    if (!target) return;
+    focusedNodeIdRef.current = nodeIdParam;
+    focusNode(target.node_id);
+  }, [nodeIdParam, nodes]);
 
   // ── filters ────────────────────────────────────────────────────────────────
   const [filterState, setFilterState]       = useState("");
