@@ -80,8 +80,11 @@ export default function Footer() {
     }))
     .filter((section) => section.links.length > 0);
 
+  // Colour palette references shared FloodWatch footer tokens (defined
+  // once in lib/theme/tokens.css). Identical to the community site so
+  // the brand bar at the bottom is consistent across both products.
   return (
-    <footer className="bg-navy">
+    <footer style={{ background: "var(--color-footer-bg)", color: "var(--color-footer-fg)" }}>
       {/* Main Footer Content */}
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-10">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
