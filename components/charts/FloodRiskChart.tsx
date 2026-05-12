@@ -6,6 +6,7 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -26,6 +27,9 @@ import { ChartTooltipShell, TooltipDivider, TooltipRow } from "./ChartTooltip";
 
 export type RiskScale = "hourly" | "daily" | "weekly" | "monthly";
 
+/** Two visual modes — vertical bars (default) or a smooth line trend. */
+export type FloodRiskVariant = "bar" | "line";
+
 export interface FloodRiskDatum {
   name: string;
   level: number | null;
@@ -44,6 +48,9 @@ export interface FloodRiskChartProps {
   showThresholds?: boolean;
   /** Pixel height of the inner ResponsiveContainer. Defaults to 240. */
   height?: number;
+  /** "bar" (default) renders discrete coloured bars; "line" renders a
+   *  smooth monotone trend line over the same gradient area. */
+  variant?: FloodRiskVariant;
 }
 
 /**
@@ -61,6 +68,7 @@ export default function FloodRiskChart({
   isDark,
   showThresholds = false,
   height = 240,
+  variant = "bar",
 }: FloodRiskChartProps) {
   const chartTextColor = isDark ? "#a0a0a0" : "#4E4B4B";
   const chartGridColor = isDark ? "var(--color-border, #30363d)" : "#E5E5E5";
@@ -185,11 +193,25 @@ export default function FloodRiskChart({
           isAnimationActive={false}
           connectNulls
         />
-        <Bar dataKey="level" name="Flood Risk Level" radius={[5, 5, 0, 0]} maxBarSize={40}>
-          {data.map((entry, i) => (
-            <Cell key={i} fill={riskColor(entry.level)} />
-          ))}
-        </Bar>
+        {variant === "bar" ? (
+          <Bar dataKey="level" name="Flood Risk Level" radius={[5, 5, 0, 0]} maxBarSize={40}>
+            {data.map((entry, i) => (
+              <Cell key={i} fill={riskColor(entry.level)} />
+            ))}
+          </Bar>
+        ) : (
+          <Line
+            type="monotone"
+            dataKey="level"
+            name="Flood Risk Level"
+            stroke="#f97316"
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: "#f97316", strokeWidth: 0 }}
+            activeDot={{ r: 5, strokeWidth: 0 }}
+            isAnimationActive={false}
+            connectNulls
+          />
+        )}
       </ComposedChart>
     </ResponsiveContainer>
   );

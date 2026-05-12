@@ -35,7 +35,7 @@ import {
   generateMalaysiaStateFallback,
   isFloodByStateSparse,
 } from "@/lib/floodRiskMock";
-import FloodRiskChart from "@/components/charts/FloodRiskChart";
+import FloodRiskChart, { type FloodRiskVariant } from "@/components/charts/FloodRiskChart";
 import {
   ChartTooltipShell,
   TooltipRow,
@@ -211,6 +211,7 @@ export default function AnalyticsPage() {
 
   // ── Flood Risk Analysis state ─────────────────────────────────────────────
   const [riskScale, setRiskScale] = useState<RiskScale>("daily");
+  const [riskVariant, setRiskVariant] = useState<FloodRiskVariant>("bar");
   const [minLevel, setMinLevel] = useState(0);
 
   const dailyRiskData = useMemo(() => {
@@ -328,15 +329,39 @@ export default function AnalyticsPage() {
                 );
               })}
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-medium ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Min. Level</span>
-              <select value={minLevel} onChange={(e) => setMinLevel(Number(e.target.value))}
-                className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold outline-none transition focus:border-primary-blue ${isDark ? "border-dark-border bg-dark-bg text-dark-text" : "border-light-grey bg-pure-white text-dark-charcoal"}`}>
-                <option value={0}>All levels</option>
-                <option value={1}>Alert+ (≥ 1)</option>
-                <option value={2}>Warning+ (≥ 2)</option>
-                <option value={3}>Critical (= 3)</option>
-              </select>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className={`flex overflow-hidden rounded-xl border text-xs font-semibold ${isDark ? "border-dark-border" : "border-light-grey"}`}>
+                {(["bar", "line"] as const).map((v) => {
+                  const active = riskVariant === v;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setRiskVariant(v)}
+                      aria-pressed={active}
+                      className={`px-3 py-1.5 capitalize transition-colors ${
+                        active
+                          ? "bg-primary-blue text-pure-white"
+                          : isDark
+                            ? "bg-dark-bg text-dark-text hover:bg-dark-border/60"
+                            : "bg-pure-white text-dark-charcoal hover:bg-very-light-grey"
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium ${isDark ? "text-dark-text-muted" : "text-dark-charcoal/60"}`}>Min. Level</span>
+                <select value={minLevel} onChange={(e) => setMinLevel(Number(e.target.value))}
+                  className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold outline-none transition focus:border-primary-blue ${isDark ? "border-dark-border bg-dark-bg text-dark-text" : "border-light-grey bg-pure-white text-dark-charcoal"}`}>
+                  <option value={0}>All levels</option>
+                  <option value={1}>Alert+ (≥ 1)</option>
+                  <option value={2}>Warning+ (≥ 2)</option>
+                  <option value={3}>Critical (= 3)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -351,6 +376,7 @@ export default function AnalyticsPage() {
               isDark={isDark}
               height={224}
               showThresholds
+              variant={riskVariant}
             />
           </div>
 

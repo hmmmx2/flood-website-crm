@@ -24,15 +24,13 @@ export const metadata: Metadata = {
   description:
     "Command center for IoT flood sensors, live alerts, and predictive analytics.",
   icons: {
-    // Browser tab favicon — Next.js auto-serves app/favicon.ico at /favicon.ico,
-    // app/icon.png at /icon.png, app/apple-icon.png at /apple-icon.png.
-    // We also list them explicitly so legacy crawlers and older browsers that
-    // ignore the auto metadata still find them.
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", type: "image/png" },
-    ],
-    shortcut: [{ url: "/favicon.ico" }],
+    // Browser tab favicon. We removed app/favicon.ico (it had a stale,
+    // non-brand glyph baked in from an earlier iteration). Next.js
+    // auto-serves app/icon.png at /icon.png, which is the proper logo,
+    // so we point every icon slot at it and let browsers rasterise it
+    // to whatever size they need for the tab.
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    shortcut: [{ url: "/icon.png" }],
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
