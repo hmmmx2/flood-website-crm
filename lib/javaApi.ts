@@ -23,11 +23,35 @@ const JAVA_API_URL = normaliseJavaApiBase(
   "http://localhost:4002",
 );
 
-/** flood-service-community — comment threading / moderation APIs when deployed separately from CRM. */
-const COMMUNITY_JAVA_API_URL = normaliseJavaApiBase(
-  process.env.COMMUNITY_JAVA_API_URL || JAVA_API_URL,
-  JAVA_API_URL,
-);
+/**
+ * flood-service-community — hosts threaded comments, content reports,
+ * admin moderation and the live sensor SSE stream. The CRM Java service
+ * does NOT mirror these endpoints, so falling back to JAVA_API_URL when
+ * COMMUNITY_JAVA_API_URL is unset leaves /community/admin/comments etc.
+ * dead in production (the panel just shows "Failed to load comments").
+ *
+ * Resolution order:
+ *   1. COMMUNITY_JAVA_API_URL explicit env (preferred for local dev to
+ *      point at http://localhost:4001).
+ *   2. JAVA_API_URL when it points at localhost (developer running both
+ *      services locally and only set the CRM port — they usually also
+ *      have community on 4001; we still prefer COMMUNITY_JAVA_API_URL).
+ *   3. The hosted community Railway URL — guarantees production never
+ *      misroutes community-only endpoints to the CRM service.
+ */
+function resolveCommunityJavaApiUrl(): string {
+  const explicit = process.env.COMMUNITY_JAVA_API_URL;
+  if (explicit && explicit.length > 0) {
+    return normaliseJavaApiBase(explicit, explicit);
+  }
+  const sibling = process.env.JAVA_API_URL || "";
+  if (sibling.includes("localhost") || sibling.includes("127.0.0.1")) {
+    return normaliseJavaApiBase(sibling, sibling);
+  }
+  return "https://flood-service-community-production.up.railway.app";
+}
+
+const COMMUNITY_JAVA_API_URL = resolveCommunityJavaApiUrl();
 
 /** Exposed for routes that proxy long-lived streams (SSE) to the community
  *  service and need to build the upstream URL themselves. */
