@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import {
   Bar,
@@ -542,26 +543,36 @@ export default function DashboardPage() {
               : "border-light-grey bg-pure-white"
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
+              {/* Title and subtitle mirror the dedicated /map page so users
+                  recognise the same widget on both surfaces. */}
               <h2
                 className={`text-lg font-semibold transition-colors ${
                   isDark ? "text-dark-text" : "text-dark-charcoal"
                 }`}
               >
-                Hotspot Map
+                Flood Map
               </h2>
               <p
                 className={`text-xs transition-colors ${
                   isDark ? "text-dark-text-secondary" : "text-dark-charcoal/70"
                 }`}
               >
-                Real-time sensor locations
+                Real-time IoT sensor locations
               </p>
             </div>
-            <span className="text-sm font-semibold text-primary-blue">
-              Online: {stats.activeNodes}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-primary-blue">
+                Online: {stats.activeNodes}
+              </span>
+              <Link
+                href="/map"
+                className="text-xs font-semibold text-primary-blue hover:underline"
+              >
+                Open full map →
+              </Link>
+            </div>
           </div>
           <div
             className={`mt-4 rounded-2xl border transition-colors ${
