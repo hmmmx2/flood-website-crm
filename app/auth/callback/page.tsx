@@ -38,13 +38,42 @@ function CallbackInner() {
         smsAlerts: false,
       };
 
-      localStorage.setItem("flood_access_token", decodeURIComponent(at));
-      localStorage.setItem("flood_refresh_token", decodeURIComponent(rt));
+      const accessToken = decodeURIComponent(at);
+      const refreshToken = decodeURIComponent(rt);
+      localStorage.setItem("flood_access_token", accessToken);
+      localStorage.setItem("flood_refresh_token", refreshToken);
       localStorage.setItem("flood_auth_user", JSON.stringify(crmUser));
       // Strip the access/refresh tokens from the URL bar BEFORE navigating
       // away — otherwise the tokens linger in browser history.
       window.history.replaceState({}, "", "/auth/callback");
-      router.replace("/dashboard");
+
+      // Ask the server to set httpOnly auth cookies. The server
+      // re-validates the role (defence-in-depth — the pre-hydration
+      // script also gates non-operator roles, but we never trust a
+      // single check). On 403 we wipe the localStorage we just wrote
+      // and bounce to /login?error=role; on 200 we proceed to the
+      // dashboard with both cookie + localStorage in sync.
+      fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken, refreshToken }),
+        credentials: "include",
+      })
+        .then((res) => {
+          if (res.ok) {
+            router.replace("/dashboard");
+          } else if (res.status === 403) {
+            localStorage.removeItem("flood_access_token");
+            localStorage.removeItem("flood_refresh_token");
+            localStorage.removeItem("flood_auth_user");
+            router.replace("/login?error=role");
+          } else {
+            router.replace("/login?error=callback");
+          }
+        })
+        .catch(() => {
+          router.replace("/login?error=callback");
+        });
     } catch {
       window.history.replaceState({}, "", "/auth/callback");
       router.replace("/login");

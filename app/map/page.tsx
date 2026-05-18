@@ -3,42 +3,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import NodeMap from "@/components/map/NodeMap";
-import { useAuth } from "@/lib/AuthContext";
-import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
-import { NodeData } from "@/lib/types";
+import { NodeData, type FloodLevel, type Zone } from "@/lib/types";
+import { useIoTStream } from "@/components/providers/IoTEventProvider";
 
-// ── SSE support ───────────────────────────────────────────────────────────────
+// ── IoT zone → NodeData adapter ──────────────────────────────────────────────
+//
+// The CRM map page predates the FloodWatch IoT integration and is
+// written in terms of the legacy MongoDB `NodeData` shape (filters,
+// side panel, favourites, etc. all read `current_level`, `is_dead`,
+// etc.). Rather than rewrite ~900 lines of page logic, we adapt the
+// new `Zone` envelope from `/api/iot/zones` at the boundary and
+// keep the page consuming `NodeData[]` internally.
+//
+// The privacy boundary is unchanged: `Zone` is already anonymised
+// (hashed `id`, lat/lng rounded to 4 d.p.), so the browser never
+// sees raw coords or plaintext node IDs even though we coerce the
+// fields into the legacy shape.
 
-type SseSensorDto = {
-  id: string;
-  nodeId: string;
-  name?: string;
-  area: string;
-  location: string;
-  state: string;
-  latitude: number;
-  longitude: number;
-  currentLevel: 0 | 1 | 2 | 3;
-  status: "active" | "warning" | "critical" | "inactive";
-  isDead?: boolean;
-  lastUpdated: string;
-};
-
-function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
+function zoneToNodeData(z: Zone): NodeData {
   return {
-    _id: dto.id,
-    node_id: dto.nodeId,
-    name: dto.name ?? "",
-    area: dto.area,
-    location: dto.location,
-    state: dto.state,
-    latitude: dto.latitude,
-    longitude: dto.longitude,
-    current_level: dto.currentLevel,
-    is_dead: dto.isDead ?? dto.status === "inactive",
-    last_updated: dto.lastUpdated,
-    created_at: prev?.created_at ?? dto.lastUpdated,
+    _id: z.id,
+    node_id: z.nodeId ?? z.id,
+    name: z.name,
+    area: z.area,
+    location: z.area,
+    state: z.state,
+    latitude: z.centroidLat,
+    longitude: z.centroidLng,
+    current_level: z.worstLevel,
+    is_dead: z.allOffline,
+    last_updated: z.lastUpdated ?? new Date().toISOString(),
+    created_at: z.lastUpdated ?? new Date().toISOString(),
   };
 }
 
@@ -149,7 +145,6 @@ function formatTimeAgo(date: Date): string {
 
 export default function FloodMapPage() {
   const { isDark } = useTheme();
-  const { accessToken, silentRefresh } = useAuth();
 
   // ── data ───────────────────────────────────────────────────────────────────
   const [nodes, setNodes] = useState<NodeData[]>([]);
@@ -315,56 +310,119 @@ export default function FloodMapPage() {
   }, []);
 
   // ── data fetching ──────────────────────────────────────────────────────────
+  //
+  // Source of truth is now the FloodWatch IoT API (via `/api/iot/zones`).
+  // The IoT BFF routes are public so we don't need the session — the
+  // page-wrapper auth guard (AppShellWrapper) still gates page access
+  // for unauthenticated users.
+  //
+  // The `?dataset=` URL param flows through unchanged: the SSE provider
+  // mounted in app/layout.tsx already forwards it, and we forward it
+  // here too so the polled snapshot and the live stream agree.
+  const datasetParam = search?.get("dataset");
+  const datasetSuffix =
+    datasetParam === "sample" || datasetParam === "all"
+      ? `?dataset=${datasetParam}`
+      : "";
+
   const fetchNodes = useCallback(async () => {
-    if (!accessToken) { setIsLoading(false); return; }
     if (isFirstFetch.current) setIsLoading(true);
     try {
-      const res = await authFetch("/api/nodes", accessToken, silentRefresh);
-      if (!res.ok) throw new Error("Failed to fetch nodes");
-      const result = await res.json();
-      if (result.success) {
-        setNodes(result.data);
-        setLastFetch(new Date());
-        setError(null);
-        isFirstFetch.current = false;
-      } else {
-        throw new Error(result.error ?? "Failed to fetch nodes");
-      }
+      const res = await fetch(`/api/iot/zones${datasetSuffix}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to fetch sensor zones");
+      const zones = (await res.json()) as Zone[];
+      if (!Array.isArray(zones)) throw new Error("Unexpected zones payload");
+      setNodes(zones.map(zoneToNodeData));
+      setLastFetch(new Date());
+      setError(null);
+      isFirstFetch.current = false;
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, silentRefresh]);
+  }, [datasetSuffix]);
 
-  // Initial fetch
+  // Initial fetch on mount + whenever the dataset query param changes.
+  // The IoT BFF routes are public so we don't gate this on a session.
   useEffect(() => {
-    if (!accessToken) return;
     fetchNodes();
-  }, [accessToken, fetchNodes]);
+  }, [fetchNodes]);
 
-  // SSE real-time updates (replaces setInterval polling)
+  // Live updates via the IoTEventProvider. Subscribes to flood_level,
+  // node_online, and node_offline events and merges them into the
+  // existing `nodes` state without a full refetch. Heartbeats are
+  // intentionally ignored — they fire every ~30 s per node with no
+  // semantic change to what the map shows.
+  //
+  // `fetchNodesRef` keeps the latest closure available without listing
+  // `fetchNodes` as an effect dep — under StrictMode + the sample
+  // dataset's alert firehose the dep-tracked variant tore the subscriber
+  // down and re-attached on every alert, which in turn re-fired the
+  // debounced refetch each tick. Result: a ~10 Hz GET storm on
+  // `/api/iot/zones`. The ref keeps the subscription stable; refetches
+  // stay throttled to the intended 1 Hz cadence.
+  const { subscribe: subscribeIoT } = useIoTStream();
+  const fetchNodesRef = useRef(fetchNodes);
   useEffect(() => {
-    if (!accessToken || !autoRefresh) return;
+    fetchNodesRef.current = fetchNodes;
+  }, [fetchNodes]);
 
-    const es = new EventSource("/api/sse/sensors");
-    es.addEventListener("sensor-update", (e: MessageEvent) => {
-      try {
-        const dto: SseSensorDto = JSON.parse(e.data as string);
-        setNodes(prev => {
-          const idx = prev.findIndex(n => n._id === dto.id);
-          const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
-          if (idx === -1) return [...prev, updated];
+  useEffect(() => {
+    if (!autoRefresh) return;
+    let scheduled: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (scheduled) return;
+      scheduled = setTimeout(() => {
+        scheduled = null;
+        void fetchNodesRef.current();
+      }, 1000);
+    };
+    const unsubscribe = subscribeIoT((event) => {
+      if (event.type === "flood_level") {
+        setNodes((prev) => {
+          const idx = prev.findIndex(
+            (n) => n.node_id === event.node_id || n._id === event.node_id,
+          );
+          if (idx === -1) return prev;
           const next = [...prev];
-          next[idx] = updated;
+          next[idx] = {
+            ...next[idx],
+            current_level: event.water_level as FloodLevel,
+            last_updated: event.timestamp,
+          };
           return next;
         });
         setLastFetch(new Date());
-      } catch { /* malformed event — ignore */ }
+      } else if (event.type === "node_online" || event.type === "node_offline") {
+        setNodes((prev) => {
+          const idx = prev.findIndex(
+            (n) => n.node_id === event.node_id || n._id === event.node_id,
+          );
+          if (idx === -1) return prev;
+          const next = [...prev];
+          next[idx] = {
+            ...next[idx],
+            is_dead: event.type === "node_offline",
+            last_updated: event.timestamp,
+          };
+          return next;
+        });
+        setLastFetch(new Date());
+      } else if (event.type === "alert") {
+        // Alerts on new nodes mean we may be missing them entirely —
+        // schedule a debounced refetch to pick up freshly-announced
+        // sensors. The dock provider handles the toast UX itself.
+        scheduleRefetch();
+      }
     });
-
-    return () => es.close();
-  }, [accessToken, autoRefresh]);
+    return () => {
+      unsubscribe();
+      if (scheduled) clearTimeout(scheduled);
+    };
+  }, [subscribeIoT, autoRefresh]);
 
   // ── reusable classnames ────────────────────────────────────────────────────
   const card = `rounded-3xl border p-5 shadow-sm transition-colors ${isDark ? "border-dark-border bg-dark-card" : "border-light-grey bg-pure-white"}`;

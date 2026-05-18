@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/lib/ThemeContext";
-import { canAccessPage } from "@/lib/permissions";
+import { canAccessPage, isOperatorRole } from "@/lib/permissions";
 import { SensorStreamProvider } from "@/components/providers/SensorStreamProvider";
 
 // Dynamically import AppShell with no SSR to prevent prerender issues
@@ -75,32 +75,60 @@ function AccessDenied() {
 }
 
 export default function AppShellWrapper({ children }: AppShellWrapperProps) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { isDark } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
 
   const isPublicRoute = publicRoutes.includes(pathname);
-  
+
   // Check if user has access to the current page
   const hasPageAccess = useMemo(() => {
     if (!user?.role) return false;
     return canAccessPage(user.role, pathname);
   }, [user?.role, pathname]);
 
+  // Last-line operator-class gate (H.6 in the hardening plan).
+  //
+  // The /api/auth/login proxy (H.4) and the /auth/callback init script
+  // (H.5) reject Customer + unknown roles before tokens ever reach
+  // this component. This is the defence-in-depth catch for any path
+  // they could miss — e.g. someone who manually writes localStorage
+  // via DevTools, or a Customer-role token left in localStorage from
+  // a prior install that pre-dates H.5. We log them out hard.
+  const isNonOperator =
+    !!user && !!user.role && !isOperatorRole(user.role);
+
   useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated && !isPublicRoute) {
-        router.push("/login");
-      } else if (isAuthenticated && isPublicRoute) {
-        // Only redirect admins — non-admin users are blocked at the login form level
-        const role = user?.role?.toLowerCase();
-        if (role === "admin") {
-          router.push("/dashboard");
-        }
+    if (isLoading) return;
+    if (isNonOperator) {
+      // Wipe the session and bounce to /login with a friendly code.
+      // logout() clears localStorage, cancels the silent-refresh timer,
+      // and resets AuthContext state.
+      logout();
+      router.replace("/login?error=role");
+      return;
+    }
+    if (!isAuthenticated && !isPublicRoute) {
+      router.push("/login");
+    } else if (isAuthenticated && isPublicRoute) {
+      // Only redirect operators — non-operator authenticated users
+      // are already evicted by the isNonOperator branch above.
+      const role = user?.role?.toLowerCase();
+      if (role === "admin") {
+        router.push("/dashboard");
       }
     }
-  }, [isAuthenticated, isLoading, isPublicRoute, router, pathname, user]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    isPublicRoute,
+    isNonOperator,
+    logout,
+    router,
+    pathname,
+    user,
+  ]);
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -122,6 +150,23 @@ export default function AppShellWrapper({ children }: AppShellWrapperProps) {
   // Will redirect to login
   if (!isAuthenticated) {
     return null;
+  }
+
+  // Will be evicted to /login?error=role by the effect above. Render
+  // a placeholder so we don't flash the AccessDenied page or the
+  // full AppShell to a Customer (or unknown-role) account before
+  // the logout completes.
+  if (isNonOperator) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-very-light-grey dark:bg-dark-bg">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-light-grey border-t-primary-blue dark:border-dark-border" />
+          <p className="text-sm font-medium text-dark-charcoal/70 dark:text-dark-text-secondary">
+            Redirecting…
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Show AppShell with access denied message if user doesn't have permission

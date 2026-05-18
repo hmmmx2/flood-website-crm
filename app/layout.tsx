@@ -6,6 +6,7 @@ import "./globals.css";
 import AppShellWrapper from "@/components/layout/AppShellWrapper";
 import { ThemeProvider } from "@/lib/ThemeContext";
 import { AuthProvider } from "@/lib/AuthContext";
+import { IoTEventProvider } from "@/components/providers/IoTEventProvider";
 import { Toaster } from "react-hot-toast";
 import { getThemeInitScript } from "@/lib/theme/themeScript";
 
@@ -85,6 +86,32 @@ export default async function RootLayout({
                 'CUSTOMER': 'Customer'
               };
               var roleKey = String(raw.role || 'CUSTOMER').trim().toUpperCase().replace(/\\s+/g, '_');
+              // ── Operator-class gate ──────────────────────────────
+              // The CRM is for operator/admin staff only. If a community
+              // end-user (Customer) or any unknown role hits this
+              // callback, REFUSE to store tokens and redirect them to
+              // the login page with a friendly error code.
+              //
+              // This list mirrors OPERATOR_JWT_KEYS in lib/permissions.ts.
+              // It is duplicated here only because this script runs
+              // before any module code (RSC strategy="beforeInteractive").
+              var OPERATOR_KEYS = [
+                'ADMIN',
+                'OPERATIONS_MANAGER', 'OPERATIONSMANAGER',
+                'FIELD_TECHNICIAN', 'FIELDTECHNICIAN',
+                'NGO_VOLUNTEER', 'NGOVOLUNTEER',
+                'VIEWER'
+              ];
+              if (OPERATOR_KEYS.indexOf(roleKey) === -1) {
+                // Non-operator: wipe any stale session and redirect.
+                try {
+                  localStorage.removeItem('flood_access_token');
+                  localStorage.removeItem('flood_refresh_token');
+                  localStorage.removeItem('flood_auth_user');
+                } catch (_) { /* localStorage may be unavailable */ }
+                window.location.replace('/login?error=role');
+                return;
+              }
               var crmUser = {
                 id: raw.id,
                 name: raw.displayName || raw.name || raw.email,
@@ -110,14 +137,16 @@ export default async function RootLayout({
 
         <ThemeProvider>
           <AuthProvider>
-            <AppShellWrapper>{children}</AppShellWrapper>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: { borderRadius: "10px", fontSize: "14px" },
-              }}
-            />
+            <IoTEventProvider>
+              <AppShellWrapper>{children}</AppShellWrapper>
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: { borderRadius: "10px", fontSize: "14px" },
+                }}
+              />
+            </IoTEventProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

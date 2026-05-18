@@ -1,5 +1,38 @@
 // Shared types for client and server components
 
+/**
+ * Discrete water-level ordinal: 0=dry, 1=low/alert, 2=mid/warning,
+ * 3=high/critical. Mirrors the community site so the privacy
+ * aggregator's `Zone` shape lines up across both apps.
+ */
+export type FloodLevel = 0 | 1 | 2 | 3;
+
+/**
+ * Anonymised single-node map circle emitted by `aggregateZones()` and
+ * consumed by the `/map` page. Coordinates are rounded to 4 d.p.
+ * (~11 m) and node identifiers are hashed — the browser never sees
+ * raw GPS or the underlying `node_id` plaintext.
+ */
+export type Zone = {
+  /** FNV-1a hash of the original node identifier; safe to use as React key. */
+  id: string;
+  /** Original node_id forwarded server-side for favourites / bell-menu only. */
+  nodeId?: string;
+  /** Coarse display name — area, NOT the raw node name. */
+  name: string;
+  state: string;
+  area: string;
+  centroidLat: number;
+  centroidLng: number;
+  radiusM: number;
+  worstLevel: FloodLevel;
+  anyOffline: boolean;
+  allOffline: boolean;
+  /** Cluster size band — always "single" since we emit one circle per node. */
+  sensorBand: "single" | "small" | "medium" | "large";
+  lastUpdated?: string;
+};
+
 // Node type definition based on MongoDB schema
 export interface NodeData {
   _id: string;

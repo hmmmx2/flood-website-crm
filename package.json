@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --max-http-header-size=65536 node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -19,6 +19,7 @@
     "@react-google-maps/api": "^2.20.7",
     "@upstash/redis": "^1.37.0",
     "clsx": "^2.1.1",
+    "jose": "^6.2.3",
     "mongodb": "^7.0.0",
     "next": "16.2.1",
     "react": "19.2.1",

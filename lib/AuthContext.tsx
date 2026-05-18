@@ -408,6 +408,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
     setSessions([]);
+    // Best-effort: ask the server to clear the httpOnly auth cookies
+    // and revoke the refresh token on the Java side. Fire-and-forget;
+    // even if it errors, the client-side state is already wiped and
+    // the redirect below sends the user to /login.
+    if (typeof window !== "undefined") {
+      void fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => { /* swallow — local wipe is what matters */ });
+    }
     router.push("/login");
   }, [user, router]);
 

@@ -3,13 +3,24 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import {
+  Circle,
   GoogleMap,
   InfoWindow,
-  Marker,
+  type Libraries,
   useJsApiLoader,
 } from "@react-google-maps/api";
 
-import { NodeData, statusHexMap, offlineColor, getStatusLabel, getMarkerColor } from "@/lib/types";
+import { NodeData, getStatusLabel, getMarkerColor } from "@/lib/types";
+
+/**
+ * Libraries the Google Maps loader needs to bring in eagerly. We use
+ * `geometry` for spherical bounds maths (Circle / LatLngBounds.extend
+ * paths) and `marker` for the AdvancedMarkerElement used by InfoWindow
+ * pointers in the underlying lib. The list MUST be a stable reference
+ * — `useJsApiLoader` re-creates the script tag on every render if a
+ * new array slot is passed in.
+ */
+const MAPS_LIBRARIES: Libraries = ["geometry", "marker"];
 
 type NodeMapProps = {
   nodes: NodeData[];
@@ -23,6 +34,8 @@ type NodeMapProps = {
   favouriteIds?: Set<string>;
   /** Called when the user clicks the star button in the InfoWindow */
   onToggleFavourite?: (nodeId: string) => void;
+  /** Per-node circle radius in metres. Defaults to 250 m to match the community site. */
+  circleRadiusM?: number;
 };
 
 const mapStyles: google.maps.MapTypeStyle[] = [
@@ -54,6 +67,7 @@ export default function NodeMap({
   highlightedIds,
   favouriteIds,
   onToggleFavourite,
+  circleRadiusM = 250,
 }: NodeMapProps) {
   // hoveredNodeId  — transient, cleared when mouse leaves
   // clickedNodeId  — persistent, survives mouse-leave so user can interact with InfoWindow
@@ -68,6 +82,7 @@ export default function NodeMap({
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: apiKey,
+    libraries: MAPS_LIBRARIES,
   });
 
   // Track if map fails to load properly
@@ -116,11 +131,46 @@ export default function NodeMap({
 
   const activeNode = nodes.find(n => n._id === activeNodeId);
 
-  // Callback to store map reference
+  // Callback to store map reference + flip the readiness flag so the
+  // first-load auto-fit effect re-runs once the camera is controllable.
+  const [mapReady, setMapReady] = useState(false);
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     setMapError(false);
+    setMapReady(true);
   }, []);
+
+  // First-load auto-fit: when nodes load *after* the GoogleMap mounts
+  // (the normal case), the mount-only `mapCenter` memo is stuck on
+  // whichever subset arrived in time. Without this effect a CRM
+  // operator opening /map sees Sarawak rather than the live Pitas
+  // cluster ~600 km NE. We fit the camera to the nodes' bounding box
+  // once — `didAutoFit` ensures we don't fight the user's subsequent
+  // pan/zoom or an externally-driven `focusNodeId`.
+  const didAutoFit = useRef(false);
+  useEffect(() => {
+    if (didAutoFit.current) return;
+    if (!mapReady || !mapRef.current || nodes.length === 0) return;
+    // Defer if a deep-link focus is already requested.
+    if (focusNodeId) {
+      didAutoFit.current = true;
+      return;
+    }
+    if (typeof google === "undefined") return;
+    const bounds = new google.maps.LatLngBounds();
+    for (const n of nodes) {
+      if (Number.isFinite(n.latitude) && Number.isFinite(n.longitude)) {
+        bounds.extend({ lat: n.latitude, lng: n.longitude });
+      }
+    }
+    if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+      mapRef.current.panTo(bounds.getCenter());
+      mapRef.current.setZoom(15);
+    } else {
+      mapRef.current.fitBounds(bounds, 64);
+    }
+    didAutoFit.current = true;
+  }, [nodes, mapReady, focusNodeId]);
 
   // Show placeholder if no valid API key or if there's an error
   if (!hasValidApiKey || mapError || loadError) {
@@ -220,35 +270,6 @@ export default function NodeMap({
     );
   }
 
-  const getIcon = (node: NodeData): google.maps.Symbol | undefined => {
-    if (typeof google === "undefined") return undefined;
-    const color = getMarkerColor(node);
-    const isLatest = latestUpdatedNode?._id === node._id;
-    const isHighlighted = highlightedIds?.has(node._id) || isLatest;
-    return {
-      path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
-      fillColor: color,
-      fillOpacity: 1,
-      strokeColor: isHighlighted ? "#FFB800" : "#ffffff",
-      strokeWeight: isHighlighted ? 3.5 : 1.5,
-      scale: isHighlighted ? 1.9 : 1.5,
-      anchor: new google.maps.Point(12, 24),
-    };
-  };
-
-  const getRingIcon = (): google.maps.Symbol | undefined => {
-    if (typeof google === "undefined") return undefined;
-    return {
-      path: google.maps.SymbolPath.CIRCLE,
-      fillColor: "transparent",
-      fillOpacity: 0,
-      strokeColor: "#FFB800",
-      strokeWeight: 2,
-      strokeOpacity: 0.65,
-      scale: 20,
-    };
-  };
-
   return (
     <GoogleMap
       mapContainerStyle={{ width: "100%", height, borderRadius: "16px" }}
@@ -264,24 +285,30 @@ export default function NodeMap({
     >
       {nodes.map((node) => {
         const isHighlighted = highlightedIds?.has(node._id) || latestUpdatedNode?._id === node._id;
+        const color = getMarkerColor(node);
         return (
           <React.Fragment key={node._id}>
-            {/* Outer amber ring for highlighted / latest node */}
-            {isHighlighted && (
-              <Marker
-                position={{ lat: node.latitude, lng: node.longitude }}
-                icon={getRingIcon()}
-                clickable={false}
-                zIndex={0}
-              />
-            )}
-            <Marker
-              position={{ lat: node.latitude, lng: node.longitude }}
-              icon={getIcon(node)}
+            {/* Coloured zone-of-influence disk. Click opens the
+                InfoWindow (we dropped the marker pin entirely so
+                operators see exactly what the privacy aggregator
+                allows: a circle, not a pinpoint coord). */}
+            <Circle
+              center={{ lat: node.latitude, lng: node.longitude }}
+              radius={circleRadiusM}
+              options={{
+                strokeColor: isHighlighted ? "#FFB800" : color,
+                strokeWeight: isHighlighted ? 3 : 1.5,
+                strokeOpacity: 0.95,
+                fillColor: color,
+                fillOpacity: 0.35,
+                clickable: true,
+                zIndex: isHighlighted ? 10 : 1,
+              }}
               onMouseOver={() => setHoveredNodeId(node._id)}
               onMouseOut={() => setHoveredNodeId(null)}
-              onClick={() => setClickedNodeId(prev => prev === node._id ? null : node._id)}
-              zIndex={isHighlighted ? 10 : 1}
+              onClick={() =>
+                setClickedNodeId((prev) => (prev === node._id ? null : node._id))
+              }
             />
           </React.Fragment>
         );

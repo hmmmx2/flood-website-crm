@@ -116,6 +116,61 @@ export const rolePermissions: Record<RoleName, Permission[]> = {
   Customer: [],
 };
 
+// ── Operator-class gate ─────────────────────────────────────────────
+//
+// The CRM is for operator/admin staff only. Community end-users
+// (`Customer` role) and any unrecognised role MUST be rejected at
+// every entry point — login proxy, /auth/callback handler, and the
+// last-line client guard in AppShellWrapper.
+//
+// `OPERATOR_ROLES` is the single source of truth. `OPERATOR_JWT_KEYS`
+// is the same list expressed as the uppercase / underscored keys the
+// Java backend stamps into the JWT `role` claim (mirrors `ROLE_MAP`
+// in app/layout.tsx). Both are exported so the pre-hydration script
+// in layout.tsx can inline them without duplicating the list.
+
+/** CRM display labels of operator-class roles (excludes "Customer"). */
+export const OPERATOR_ROLES: ReadonlyArray<RoleName> = [
+  "Admin",
+  "Operations Manager",
+  "Field Technician",
+  "NGO Volunteer",
+  "Viewer",
+];
+
+/** Raw Java-backend role strings that correspond to operator-class. */
+export const OPERATOR_JWT_KEYS: ReadonlyArray<string> = [
+  "ADMIN",
+  "OPERATIONS_MANAGER",
+  "OPERATIONSMANAGER",
+  "FIELD_TECHNICIAN",
+  "FIELDTECHNICIAN",
+  "NGO_VOLUNTEER",
+  "NGOVOLUNTEER",
+  "VIEWER",
+];
+
+/**
+ * Is this CRM display role authorised to access the CRM at all?
+ * Used by the AppShellWrapper as a last-line client-side guard.
+ */
+export function isOperatorRole(role: string | null | undefined): boolean {
+  if (!role) return false;
+  return (OPERATOR_ROLES as ReadonlyArray<string>).includes(role);
+}
+
+/**
+ * Same check, but accepts the raw Java backend role string (the form
+ * stamped into the JWT — uppercase, underscored). Used by the login
+ * proxy and the auth-callback script before display-label mapping
+ * has happened.
+ */
+export function isOperatorJwtRole(jwtRole: string | null | undefined): boolean {
+  if (!jwtRole) return false;
+  const key = String(jwtRole).trim().toUpperCase().replace(/\s+/g, "_");
+  return OPERATOR_JWT_KEYS.includes(key);
+}
+
 // Permission descriptions for UI
 export const permissionDescriptions: Record<Permission, string> = {
   all: "Full system access with all permissions",

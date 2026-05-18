@@ -4,6 +4,14 @@
 // BFF proxy — fetches sensor nodes from the Java Spring Boot API,
 // caches in Upstash Redis for 30 s, returns the NodeData shape.
 //
+// LEGACY ROUTE NOTE (2026-05-18):
+//   The /map page no longer consumes this route — it pulls live
+//   sensor data from `/api/iot/zones` (FloodWatch IoT API). This
+//   route stays in service for the remaining CRM pages
+//   (/sensors, /analytics, /dashboard, /alerts, /settings) that
+//   still depend on the Java backend's NodeData shape. Those pages
+//   migrate to `/api/iot/*` in a follow-up Phase 5 ticket.
+//
 // Cache strategy:
 //   - Key: "crm:nodes:all"
 //   - TTL: 30 s (near real-time sensor polling)
