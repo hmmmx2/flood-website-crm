@@ -167,7 +167,16 @@ export function isOperatorRole(role: string | null | undefined): boolean {
  */
 export function isOperatorJwtRole(jwtRole: string | null | undefined): boolean {
   if (!jwtRole) return false;
-  const key = String(jwtRole).trim().toUpperCase().replace(/\s+/g, "_");
+  // Normalise: trim, uppercase, whitespace→underscore, drop the
+  // Spring Security `ROLE_` prefix if present. Matches the same
+  // normalisation done by `isOperatorRole` in the community site's
+  // login page — keeping both in lockstep so a backend tweak can't
+  // route an admin to /auth/callback only to get 403'd here.
+  const key = String(jwtRole)
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_")
+    .replace(/^ROLE_/, "");
   return OPERATOR_JWT_KEYS.includes(key);
 }
 

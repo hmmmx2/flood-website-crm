@@ -85,7 +85,13 @@ export default async function RootLayout({
                 'VIEWER': 'Viewer',
                 'CUSTOMER': 'Customer'
               };
-              var roleKey = String(raw.role || 'CUSTOMER').trim().toUpperCase().replace(/\\s+/g, '_');
+              // Match the normalisation in isOperatorJwtRole + the
+              // community login page: trim, uppercase, whitespace→
+              // underscore, drop any Spring Security 'ROLE_' prefix.
+              var roleKey = String(raw.role || 'CUSTOMER')
+                .trim().toUpperCase()
+                .replace(/\\s+/g, '_')
+                .replace(/^ROLE_/, '');
               // ── Operator-class gate ──────────────────────────────
               // The CRM is for operator/admin staff only. If a community
               // end-user (Customer) or any unknown role hits this
