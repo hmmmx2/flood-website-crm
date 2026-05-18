@@ -147,11 +147,12 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - login (the form itself)
      * - auth/callback (the SSO bridge)
-     * - api (BFF + auth routes)
-     * - _next/static (static files)
-     * - _next/image (image optimisation files)
+     * - api (BFF + auth routes — gated per-route, not here)
+     * - _next/static (build artefacts)
+     * - _next/image (image optimisation API)
+     * - images (raw public/images/* assets — login hero, logo, etc.)
      * - favicon.ico, icon.png, apple-icon.png, manifest.webmanifest
      */
-    "/((?!login|auth/callback|api|_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest).*)",
+    "/((?!login|auth/callback|api|_next/static|_next/image|images|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest).*)",
   ],
 };

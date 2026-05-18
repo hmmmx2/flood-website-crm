@@ -1,13 +1,11 @@
 "use client";
 
 /**
- * CRM-native credentials sign-in.
+ * CRM operator sign-in.
  *
- * Replaces the previous cross-port redirect to community + the
- * dev-only forged-JWT button (DevPreviewSignIn). Operators sign in
- * here directly: email + password → POST /api/auth/login → CRM
- * receives the Java JWT and stores tokens in localStorage under the
- * same keys AuthContext already reads on mount.
+ * Two-panel layout mirroring the community login page so the auth
+ * experience feels unified across both apps. On mobile the hero
+ * collapses and the form takes the full width.
  *
  * Security boundary: /api/auth/login (the CRM proxy) rejects any
  * non-operator role server-side BEFORE returning tokens to the
@@ -16,26 +14,27 @@
  * The form renders that 403 as a friendly "Not authorised" banner.
  *
  * `?error=` query support (H.7):
- *   - role:     the auth-callback rejected a non-operator
- *   - expired:  the AuthContext fired silentRefresh and it failed
- *   - callback: community → CRM handoff was malformed
+ *   - role     — the auth-callback rejected a non-operator
+ *   - expired  — the AuthContext fired silentRefresh and it failed,
+ *                or the Edge middleware found the cookie missing /
+ *                expired / signature-invalid
+ *   - callback — community → CRM handoff was malformed
  *
- * The community sign-in fallback link stays (for operators who'd
- * rather use SSO through community), but it is plain `<a>` — no
- * automatic redirect. Cross-port nav only happens on explicit click.
+ * The community SSO fallback link stays (for operators who already
+ * have a community session), but it's a plain `<a>` — no auto
+ * redirect. Cross-origin nav only happens on explicit click.
  */
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState, type FormEvent, Suspense } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { User } from "@/lib/AuthContext";
 
 const ERROR_MESSAGES: Record<string, string> = {
   role:
-    "Your account is not authorised for CRM access. " +
+    "This account is not authorised for CRM access. " +
     "Please use the community website for end-user features.",
-  expired:
-    "Your session expired — please sign in again.",
+  expired: "Your session expired — please sign in again.",
   callback:
     "Sign-in failed during the community redirect. Try again, " +
     "or sign in directly below.",
@@ -53,7 +52,7 @@ type LoginSuccessResponse = {
   };
 };
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -69,8 +68,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
 
-  // Refresh the inline banner when the URL changes (router.push
-  // back to /login?error=... while the page is already mounted).
   useEffect(() => {
     if (errorCode) setError(ERROR_MESSAGES[errorCode] ?? "Sign in failed.");
   }, [errorCode]);
@@ -88,9 +85,6 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password }),
-        // Required for the httpOnly cookie set by the route to be
-        // attached to the response on same-origin POST — the default
-        // changed in some browsers; being explicit avoids surprises.
         credentials: "include",
       });
       const body = (await res.json().catch(() => ({}))) as
@@ -110,12 +104,11 @@ export default function LoginPage() {
         return;
       }
 
-      // Success — write tokens + user in the shape AuthContext expects.
-      // Keep this list in lockstep with `flood-website-crm/lib/AuthContext.tsx`.
       const payload = body as LoginSuccessResponse;
       const crmUser: User = {
         id: payload.user.id,
-        name: payload.user.displayName ?? payload.user.name ?? payload.user.email,
+        name:
+          payload.user.displayName ?? payload.user.name ?? payload.user.email,
         email: payload.user.email,
         avatarUrl: payload.user.avatarUrl,
         role: normaliseRoleForCrm(payload.user.role),
@@ -130,8 +123,6 @@ export default function LoginPage() {
       localStorage.setItem("flood_refresh_token", payload.session.refreshToken);
       localStorage.setItem("flood_auth_user", JSON.stringify(crmUser));
 
-      // Hard navigation so AuthContext re-reads localStorage in its
-      // mount-effect (router.push doesn't trigger that init flow).
       const callbackUrl = searchParams?.get("callbackUrl");
       window.location.href = callbackUrl ?? "/dashboard";
     } catch {
@@ -142,147 +133,164 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200 p-6 text-slate-800 dark:from-slate-900 dark:to-slate-950 dark:text-slate-100">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-        {/* Header */}
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="h-5 w-5"
-            >
-              <path
-                fillRule="evenodd"
-                d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5z"
-                clipRule="evenodd"
-              />
-            </svg>
+    <div className="flex min-h-screen flex-col bg-very-light-grey dark:bg-dark-bg">
+      <div className="flex flex-1">
+        {/* ── Left panel — hero image (desktop only) ───────────────── */}
+        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+          <div className="absolute inset-0">
+            <Image
+              src="/images/flood-background.jpeg"
+              alt="Flood monitoring control room"
+              fill
+              sizes="50vw"
+              className="object-cover"
+              priority
+            />
+            {/* Same gradient as the community login so the auth flow
+                feels unified across both apps. */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(30,58,138,0.7) 0%, rgba(29,78,216,0.5) 50%, rgba(8,145,178,0.5) 100%)",
+              }}
+            />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold">CRM sign-in</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Operator-only console
+          <div className="relative z-10 flex flex-1 flex-col justify-center items-center text-center px-12">
+            <div className="drop-shadow-lg">
+              <Image
+                src="/images/logo.png"
+                alt="Pop Up Advertising And Information Enterprise"
+                width={100}
+                height={100}
+                className="mx-auto mb-6"
+                priority
+              />
+              <h1 className="text-3xl font-bold text-white mb-3">
+                FloodWatch CRM
+              </h1>
+              <p className="text-base text-white/90 max-w-sm mx-auto">
+                Operator console for live IoT sensor fleet, flood alerts, and
+                community moderation across Sabah.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right panel — form ────────────────────────────────────── */}
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-md rounded-3xl border border-light-grey bg-pure-white p-8 shadow-lg dark:border-dark-border dark:bg-dark-card">
+            {/* Logo (mobile only) */}
+            <div className="flex justify-center mb-6 lg:hidden">
+              <Image
+                src="/images/logo.png"
+                alt="Pop Up Advertising And Information Enterprise"
+                width={80}
+                height={80}
+                priority
+              />
+            </div>
+
+            <h2 className="text-2xl font-semibold mb-2 text-dark-charcoal dark:text-dark-text">
+              Operator Sign-in
+            </h2>
+            <p className="text-sm mb-6 text-dark-charcoal/60 dark:text-dark-text-muted">
+              Restricted to admin, operations, field technician, NGO volunteer,
+              and viewer roles.
+            </p>
+
+            {error && (
+              <div
+                role="alert"
+                className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+              >
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium mb-2 text-dark-charcoal dark:text-dark-text"
+                >
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  placeholder="operator@example.com"
+                  className="w-full rounded-xl border border-light-grey bg-very-light-grey px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/30 disabled:opacity-60 text-dark-charcoal placeholder:text-dark-charcoal/40 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text dark:placeholder:text-dark-text-muted"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium mb-2 text-dark-charcoal dark:text-dark-text"
+                >
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    placeholder="Enter your password"
+                    className="w-full rounded-xl border border-light-grey bg-very-light-grey px-4 py-2.5 pr-16 text-sm outline-none transition-colors focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/30 disabled:opacity-60 text-dark-charcoal placeholder:text-dark-charcoal/40 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text dark:placeholder:text-dark-text-muted"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    tabIndex={-1}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium transition-colors text-dark-charcoal/60 hover:text-dark-charcoal dark:text-dark-text-muted dark:hover:text-dark-text"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-xl bg-primary-blue px-4 py-2.5 text-sm font-semibold text-pure-white transition hover:bg-primary-blue/90 focus:outline-none focus:ring-2 focus:ring-primary-blue/50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-dark-card"
+              >
+                {loading ? "Signing in…" : "Sign In"}
+              </button>
+            </form>
+
+            {/* Community SSO fallback — explicit click only, no auto nav */}
+            <p className="mt-6 text-sm text-center text-dark-charcoal/60 dark:text-dark-text-muted">
+              Already signed in on the community site?{" "}
+              <a
+                href={`${communityUrl}/login`}
+                className="font-semibold text-primary-blue transition hover:opacity-80"
+              >
+                Use community SSO
+              </a>
             </p>
           </div>
         </div>
-
-        {/* Error banner */}
-        {error && (
-          <div
-            role="alert"
-            className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
-          >
-            {error}
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400"
-            >
-              Work email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              placeholder="operator@example.com"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400"
-            >
-              Password
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-16 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                tabIndex={-1}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-slate-900"
-          >
-            {loading ? (
-              <>
-                <svg
-                  className="h-4 w-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                >
-                  <path
-                    d="M12 4a8 8 0 1 0 8 8"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                Signing in…
-              </>
-            ) : (
-              "Sign in"
-            )}
-          </button>
-        </form>
-
-        {/* Secondary: community SSO link */}
-        <div className="mt-6 border-t border-slate-200 pt-4 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-          <p>
-            Already signed in on the community site?{" "}
-            <a
-              href={`${communityUrl}/login`}
-              className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
-            >
-              Use community SSO instead
-            </a>
-          </p>
-        </div>
       </div>
-    </main>
+    </div>
   );
 }
 
 /**
  * Map a raw Java backend role string ("ADMIN", "OPERATIONS_MANAGER",
- * etc.) to the CRM display label AuthContext expects ("Admin",
- * "Operations Manager", etc.). Mirrors the ROLE_MAP in
- * app/layout.tsx so the two paths agree on labels.
- *
- * If the role isn't recognised we keep it as-is so the
- * isOperatorRole() check downstream rejects it cleanly rather than
- * silently coercing to a valid role.
+ * etc.) to the CRM display label AuthContext expects. Mirrors the
+ * ROLE_MAP in app/layout.tsx; an unrecognised role passes through
+ * so the downstream isOperatorRole check rejects it cleanly.
  */
 function normaliseRoleForCrm(rawRole: string): string {
   const key = String(rawRole || "").trim().toUpperCase().replace(/\s+/g, "_");
@@ -305,4 +313,18 @@ function normaliseRoleForCrm(rawRole: string): string {
     default:
       return rawRole;
   }
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-very-light-grey dark:bg-dark-bg">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-light-grey border-t-primary-blue" />
+        </div>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
+  );
 }
