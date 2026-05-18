@@ -1,4 +1,21 @@
 // Role-Based Access Control (RBAC) System
+//
+// This file hosts CRM-specific permission matrices, page guards, and
+// navigation helpers. The CORE role primitives — operator-class
+// predicate, role normalisation, display labels, post-login routing —
+// live in `lib/rbac.ts`, which is byte-identical between the CRM and
+// the community site (see __tests__/lib/rbac-drift.test.ts).
+//
+// Old call sites import `isOperatorJwtRole`, `OPERATOR_JWT_KEYS`,
+// etc. from this file; they still work via the re-exports below.
+// New code should import directly from `@/lib/rbac`.
+
+import {
+  OPERATOR_JWT_KEYS as RBAC_OPERATOR_JWT_KEYS,
+  isOperatorRole as rbacIsOperatorRole,
+  normalizeRoleKey,
+  roleToDisplayLabel,
+} from "@/lib/rbac";
 
 export type Permission =
   | "all"
@@ -118,16 +135,9 @@ export const rolePermissions: Record<RoleName, Permission[]> = {
 
 // ── Operator-class gate ─────────────────────────────────────────────
 //
-// The CRM is for operator/admin staff only. Community end-users
-// (`Customer` role) and any unrecognised role MUST be rejected at
-// every entry point — login proxy, /auth/callback handler, and the
-// last-line client guard in AppShellWrapper.
-//
-// `OPERATOR_ROLES` is the single source of truth. `OPERATOR_JWT_KEYS`
-// is the same list expressed as the uppercase / underscored keys the
-// Java backend stamps into the JWT `role` claim (mirrors `ROLE_MAP`
-// in app/layout.tsx). Both are exported so the pre-hydration script
-// in layout.tsx can inline them without duplicating the list.
+// Thin re-exports of the canonical RBAC primitives from `lib/rbac.ts`.
+// Existing call sites continue to import from `@/lib/permissions`; new
+// code should import from `@/lib/rbac` directly.
 
 /** CRM display labels of operator-class roles (excludes "Customer"). */
 export const OPERATOR_ROLES: ReadonlyArray<RoleName> = [
@@ -138,46 +148,27 @@ export const OPERATOR_ROLES: ReadonlyArray<RoleName> = [
   "Viewer",
 ];
 
-/** Raw Java-backend role strings that correspond to operator-class. */
-export const OPERATOR_JWT_KEYS: ReadonlyArray<string> = [
-  "ADMIN",
-  "OPERATIONS_MANAGER",
-  "OPERATIONSMANAGER",
-  "FIELD_TECHNICIAN",
-  "FIELDTECHNICIAN",
-  "NGO_VOLUNTEER",
-  "NGOVOLUNTEER",
-  "VIEWER",
-];
+/**
+ * Raw Java-backend role strings that correspond to operator-class.
+ * Exposed as a read-only array view for the few call sites that do
+ * `.includes(...)` — internally it's a Set in lib/rbac.ts.
+ */
+export const OPERATOR_JWT_KEYS: ReadonlyArray<string> = Array.from(
+  RBAC_OPERATOR_JWT_KEYS,
+);
 
 /**
- * Is this CRM display role authorised to access the CRM at all?
- * Used by the AppShellWrapper as a last-line client-side guard.
+ * Accepts either a display label ("Admin") or a JWT enum
+ * ("ADMIN" / "ROLE_ADMIN" / "Operations Manager"). Always
+ * normalises before testing — call sites can be sloppy.
  */
 export function isOperatorRole(role: string | null | undefined): boolean {
-  if (!role) return false;
-  return (OPERATOR_ROLES as ReadonlyArray<string>).includes(role);
+  return rbacIsOperatorRole(role);
 }
 
-/**
- * Same check, but accepts the raw Java backend role string (the form
- * stamped into the JWT — uppercase, underscored). Used by the login
- * proxy and the auth-callback script before display-label mapping
- * has happened.
- */
+/** @deprecated — use `isOperatorRole` from `@/lib/rbac`. Kept for back-compat. */
 export function isOperatorJwtRole(jwtRole: string | null | undefined): boolean {
-  if (!jwtRole) return false;
-  // Normalise: trim, uppercase, whitespace→underscore, drop the
-  // Spring Security `ROLE_` prefix if present. Matches the same
-  // normalisation done by `isOperatorRole` in the community site's
-  // login page — keeping both in lockstep so a backend tweak can't
-  // route an admin to /auth/callback only to get 403'd here.
-  const key = String(jwtRole)
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_")
-    .replace(/^ROLE_/, "");
-  return OPERATOR_JWT_KEYS.includes(key);
+  return rbacIsOperatorRole(jwtRole);
 }
 
 // Permission descriptions for UI
@@ -307,18 +298,20 @@ export function canManageUsers(role: string): boolean {
   return hasPermission(role, "users.manage") || hasPermission(role, "all");
 }
 
-/** Maps JWT `role` claim (ADMIN, …) or API display/locale strings to UI {@link RoleName}. */
-const JWT_OR_API_ROLE_TO_DISPLAY: Record<string, RoleName> = {
-  ADMIN: "Admin",
-  OPERATIONS_MANAGER: "Operations Manager",
-  FIELD_TECHNICIAN: "Field Technician",
-  NGO_VOLUNTEER: "NGO Volunteer",
-  VIEWER: "Viewer",
-  CUSTOMER: "Customer",
-};
-
+/**
+ * Maps any role string (JWT enum `ADMIN`, API display `Admin`, locale
+ * variants) to the canonical CRM {@link RoleName}. Thin wrapper around
+ * `roleToDisplayLabel` in `lib/rbac.ts` — the underlying normalisation
+ * already handles `ROLE_` prefix, whitespace, no-underscore variants.
+ */
 export function roleFromJwtOrApiRole(raw: string | undefined | null): RoleName {
-  if (raw == null || !String(raw).trim()) return "Customer";
-  const key = String(raw).trim().toUpperCase().replace(/\s+/g, "_");
-  return JWT_OR_API_ROLE_TO_DISPLAY[key] ?? "Customer";
+  // `roleToDisplayLabel` returns one of the six display labels which
+  // happen to BE the `RoleName` union — safe widening.
+  return roleToDisplayLabel(raw) as RoleName;
 }
+
+// Re-export rbac primitives so call sites can stay on @/lib/permissions
+// during the migration window.
+export { normalizeRoleKey } from "@/lib/rbac";
+export type { RoleKey, RoleLabel, RouteTarget } from "@/lib/rbac";
+export { routeForRole } from "@/lib/rbac";

@@ -1,99 +1,153 @@
-"use client";
+// /auth/callback — server-rendered SSO landing.
+//
+// Two acceptable URL shapes during the migration window:
+//
+//   NEW   ?code=<opaque 32-byte URL-safe random>
+//         The community login mints this code, stashes the token
+//         bundle in Upstash for 60 s, and redirects here. We redeem
+//         the code server-side (atomic GETDEL), verify the JWT
+//         signature + role, set httpOnly cookies, redirect to
+//         /dashboard. Tokens never appear in the URL bar.
+//
+//   LEGACY ?at=<token>&rt=<token>&u=<json>
+//         The pre-redesign hand-off. Still accepted so any operator
+//         already mid-handoff during a deploy lands safely. Removed
+//         in a follow-up commit after a 7-day soak.
+//
+// Either path ends with a same-origin server-side `redirect()` —
+// no client JS, no `useEffect`, no localStorage. The browser sees
+// one final URL (`/dashboard` or `/login?error=…`) in history.
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { roleFromJwtOrApiRole } from "@/lib/permissions";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import {
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  authCookieOptions,
+} from "@/lib/authCookies";
+import {
+  decodeJwtPayload,
+  verifyJwtSignature,
+} from "@/lib/jwtPayload";
+import { isOperatorRole } from "@/lib/rbac";
+import { redeemSsoCode } from "@/lib/sso";
 
-function CallbackInner() {
-  const router = useRouter();
-  const params = useSearchParams();
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-  useEffect(() => {
-    const at = params.get("at");
-    const rt = params.get("rt");
-    const u = params.get("u");
+type SearchParams = {
+  code?: string | string[];
+  at?: string | string[];
+  rt?: string | string[];
+  u?: string | string[];
+};
 
-    if (!at || !rt || !u) {
-      router.replace("/login");
-      return;
-    }
+function first(v: string | string[] | undefined): string | null {
+  if (typeof v === "string") return v;
+  if (Array.isArray(v) && v.length > 0) return v[0];
+  return null;
+}
 
-    try {
-      const raw = JSON.parse(decodeURIComponent(u));
-
-      // Transform community AuthUser → CRM User shape so AuthContext
-      // reads it correctly. Critical: role must be capitalized ("Admin")
-      // to match rolePermissions keys in lib/permissions.ts.
-      const crmUser = {
-        id: raw.id,
-        name: raw.displayName || raw.name || raw.email,
-        email: raw.email,
-        role: roleFromJwtOrApiRole(String(raw.role ?? "CUSTOMER")),
-        status: "active",
-        twoFactorEnabled: false,
-        passwordLastChanged: new Date().toISOString(),
-        notifications: true,
-        emailAlerts: true,
-        smsAlerts: false,
-      };
-
-      const accessToken = decodeURIComponent(at);
-      const refreshToken = decodeURIComponent(rt);
-      localStorage.setItem("flood_access_token", accessToken);
-      localStorage.setItem("flood_refresh_token", refreshToken);
-      localStorage.setItem("flood_auth_user", JSON.stringify(crmUser));
-      // Strip the access/refresh tokens from the URL bar BEFORE navigating
-      // away — otherwise the tokens linger in browser history.
-      window.history.replaceState({}, "", "/auth/callback");
-
-      // Ask the server to set httpOnly auth cookies. The server
-      // re-validates the role (defence-in-depth — the pre-hydration
-      // script also gates non-operator roles, but we never trust a
-      // single check). On 403 we wipe the localStorage we just wrote
-      // and bounce to /login?error=role; on 200 we proceed to the
-      // dashboard with both cookie + localStorage in sync.
-      fetch("/api/auth/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken, refreshToken }),
-        credentials: "include",
-      })
-        .then((res) => {
-          if (res.ok) {
-            router.replace("/dashboard");
-          } else if (res.status === 403) {
-            localStorage.removeItem("flood_access_token");
-            localStorage.removeItem("flood_refresh_token");
-            localStorage.removeItem("flood_auth_user");
-            router.replace("/login?error=role");
-          } else {
-            router.replace("/login?error=callback");
-          }
-        })
-        .catch(() => {
-          router.replace("/login?error=callback");
-        });
-    } catch {
-      window.history.replaceState({}, "", "/auth/callback");
-      router.replace("/login");
-    }
-  }, [params, router]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
-      <div className="text-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600 mx-auto mb-4" />
-        <p className="text-sm text-gray-500">Setting up your session…</p>
-      </div>
-    </div>
+async function setAuthCookies(args: {
+  accessToken: string;
+  refreshToken: string;
+  exp: number | null;
+}) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const accessMaxAge = Math.max(
+    60,
+    args.exp !== null ? args.exp - nowSec : 60 * 60,
+  );
+  const jar = await cookies();
+  jar.set(ACCESS_COOKIE, args.accessToken, authCookieOptions(accessMaxAge));
+  jar.set(
+    REFRESH_COOKIE,
+    args.refreshToken,
+    authCookieOptions(60 * 60 * 24 * 7),
   );
 }
 
-export default function AuthCallbackPage() {
-  return (
-    <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}><p>Loading...</p></div>}>
-      <CallbackInner />
-    </Suspense>
-  );
+async function verifyAndExtractRole(
+  accessToken: string,
+): Promise<{ ok: true; role: string | null; exp: number | null } | { ok: false }> {
+  const secret = process.env.JWT_SECRET;
+  if (secret) {
+    const verified = await verifyJwtSignature(accessToken, secret);
+    if (!verified.ok) return { ok: false };
+    return {
+      ok: true,
+      role:
+        typeof verified.payload.role === "string"
+          ? verified.payload.role
+          : null,
+      exp:
+        typeof verified.payload.exp === "number" ? verified.payload.exp : null,
+    };
+  }
+  // Payload-only fallback (transitional / dev). Java's signature
+  // gate on /profile + middleware payload check are the safety net.
+  const decoded = decodeJwtPayload(accessToken);
+  if (!decoded) return { ok: false };
+  return {
+    ok: true,
+    role: typeof decoded.role === "string" ? decoded.role : null,
+    exp: typeof decoded.exp === "number" ? decoded.exp : null,
+  };
+}
+
+export default async function AuthCallbackPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+
+  const code = first(params.code);
+  const at = first(params.at);
+  const rt = first(params.rt);
+  // `u` is the legacy URL-encoded user JSON; we no longer rely on it
+  // (the JWT carries everything the role gate needs), but we still
+  // accept the URL shape so legacy redirects don't 404.
+
+  // ── New path: ?code=<sso code> ─────────────────────────────
+  if (code) {
+    const payload = await redeemSsoCode(code);
+    if (payload === null) {
+      // Unknown / expired / already redeemed.
+      redirect("/login?error=sso_expired");
+    }
+    const verified = await verifyAndExtractRole(payload.accessToken);
+    if (!verified.ok) {
+      redirect("/login?error=sso_failed");
+    }
+    if (!isOperatorRole(verified.role)) {
+      redirect("/login?error=role");
+    }
+    await setAuthCookies({
+      accessToken: payload.accessToken,
+      refreshToken: payload.refreshToken,
+      exp: verified.exp,
+    });
+    redirect("/dashboard");
+  }
+
+  // ── Legacy path: ?at=&rt=&u= ───────────────────────────────
+  if (at && rt) {
+    const verified = await verifyAndExtractRole(at);
+    if (!verified.ok) {
+      redirect("/login?error=callback");
+    }
+    if (!isOperatorRole(verified.role)) {
+      redirect("/login?error=role");
+    }
+    await setAuthCookies({
+      accessToken: at,
+      refreshToken: rt,
+      exp: verified.exp,
+    });
+    redirect("/dashboard");
+  }
+
+  // Neither shape provided → back to login.
+  redirect("/login?error=callback");
 }

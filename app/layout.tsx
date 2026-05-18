@@ -57,89 +57,15 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: getThemeInitScript() }}
         />
         {/*
-          Runs SYNCHRONOUSLY before React hydration.
-          On /auth/callback, reads ?at=&rt=&u= from the URL and writes the
-          correct CRM-shaped user into localStorage before AuthContext mounts.
+          NOTE — `auth-callback-init` Script was removed (2026-05-19).
+          It previously mirrored token-handoff URL params into
+          localStorage before React hydration. Tokens no longer travel
+          in URL params: the new SSO handoff redeems an opaque
+          ?code=<32B> server-side in `/auth/callback/page.tsx` and
+          sets httpOnly cookies. AuthContext now hydrates from
+          GET /api/auth/me on the cookie path. See plan addendum
+          "Login + RBAC Redesign (2026-05-19)".
         */}
-        <Script id="auth-callback-init" strategy="beforeInteractive">{`
-          (function() {
-            try {
-              if (window.location.pathname !== '/auth/callback') return;
-              var params = new URLSearchParams(window.location.search);
-              var at = params.get('at');
-              var rt = params.get('rt');
-              var u  = params.get('u');
-              if (!at || !rt || !u || at === 'undefined' || rt === 'undefined') return;
-              var raw = JSON.parse(decodeURIComponent(u));
-              // Normalize JWT/API role string → canonical CRM display label.
-              // Mirrors lib/permissions.ts → roleFromJwtOrApiRole. Inlined here
-              // because this script runs before React hydration.
-              var ROLE_MAP = {
-                'ADMIN': 'Admin',
-                'OPERATIONS_MANAGER': 'Operations Manager',
-                'OPERATIONSMANAGER': 'Operations Manager',
-                'FIELD_TECHNICIAN': 'Field Technician',
-                'FIELDTECHNICIAN': 'Field Technician',
-                'NGO_VOLUNTEER': 'NGO Volunteer',
-                'NGOVOLUNTEER': 'NGO Volunteer',
-                'VIEWER': 'Viewer',
-                'CUSTOMER': 'Customer'
-              };
-              // Match the normalisation in isOperatorJwtRole + the
-              // community login page: trim, uppercase, whitespace→
-              // underscore, drop any Spring Security 'ROLE_' prefix.
-              var roleKey = String(raw.role || 'CUSTOMER')
-                .trim().toUpperCase()
-                .replace(/\\s+/g, '_')
-                .replace(/^ROLE_/, '');
-              // ── Operator-class gate ──────────────────────────────
-              // The CRM is for operator/admin staff only. If a community
-              // end-user (Customer) or any unknown role hits this
-              // callback, REFUSE to store tokens and redirect them to
-              // the login page with a friendly error code.
-              //
-              // This list mirrors OPERATOR_JWT_KEYS in lib/permissions.ts.
-              // It is duplicated here only because this script runs
-              // before any module code (RSC strategy="beforeInteractive").
-              var OPERATOR_KEYS = [
-                'ADMIN',
-                'OPERATIONS_MANAGER', 'OPERATIONSMANAGER',
-                'FIELD_TECHNICIAN', 'FIELDTECHNICIAN',
-                'NGO_VOLUNTEER', 'NGOVOLUNTEER',
-                'VIEWER'
-              ];
-              if (OPERATOR_KEYS.indexOf(roleKey) === -1) {
-                // Non-operator: wipe any stale session and redirect.
-                try {
-                  localStorage.removeItem('flood_access_token');
-                  localStorage.removeItem('flood_refresh_token');
-                  localStorage.removeItem('flood_auth_user');
-                } catch (_) { /* localStorage may be unavailable */ }
-                window.location.replace('/login?error=role');
-                return;
-              }
-              var crmUser = {
-                id: raw.id,
-                name: raw.displayName || raw.name || raw.email,
-                email: raw.email,
-                role: ROLE_MAP[roleKey] || 'Customer',
-                status: 'active',
-                twoFactorEnabled: false,
-                passwordLastChanged: new Date().toISOString(),
-                notifications: true,
-                emailAlerts: true,
-                smsAlerts: false
-              };
-              localStorage.setItem('flood_access_token',  decodeURIComponent(at));
-              localStorage.setItem('flood_refresh_token', decodeURIComponent(rt));
-              localStorage.setItem('flood_auth_user',     JSON.stringify(crmUser));
-              // Strip tokens from the URL bar so they don't linger in history.
-              window.history.replaceState({}, '', '/auth/callback');
-            } catch(e) {
-              if (process.env.NODE_ENV !== 'production') console.error('[auth-callback] token init failed', e);
-            }
-          })();
-        `}</Script>
 
         <ThemeProvider>
           <AuthProvider>

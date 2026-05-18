@@ -269,32 +269,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   // ── Load persisted session on mount ────────────────────────
+  //
+  // Hydration is now cookie-first:
+  //
+  //   1. Ask /api/auth/me — reads the httpOnly access cookie,
+  //      re-validates the role server-side, returns the user.
+  //   2. If that 401s but the legacy localStorage keys are present,
+  //      fall back to the old path so in-flight sessions minted
+  //      before the cookie cut-over keep working.
+  //   3. If both fail, leave user=null. AppShellWrapper will route
+  //      to /login on the next render.
+  //
+  // The `accessToken` state is unused on the cookie path — every
+  // authenticated server call goes through a same-origin BFF route
+  // that reads the cookie. It's still set on the localStorage
+  // fallback so legacy components that read it keep working.
   useEffect(() => {
     const init = async () => {
       try {
+        // ── 1. Cookie path: /api/auth/me ─────────────────────────
+        try {
+          const meRes = await fetch("/api/auth/me", {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+          });
+          if (meRes.ok) {
+            const data = (await meRes.json()) as {
+              user: {
+                id: string;
+                email: string;
+                displayName: string;
+                avatarUrl: string | null;
+                role: string;
+                roleLabel: string;
+              };
+            };
+            const localUser: User = {
+              id: data.user.id,
+              name: data.user.displayName || data.user.email,
+              email: data.user.email,
+              role: roleFromJwtOrApiRole(data.user.roleLabel || data.user.role),
+              status: "active",
+              avatarUrl: data.user.avatarUrl ?? undefined,
+              twoFactorEnabled: false,
+              passwordLastChanged: new Date().toISOString(),
+              notifications: true,
+              emailAlerts: true,
+              smsAlerts: false,
+            };
+            setUser(localUser);
+            // Pull the legacy sessions list if it survives — non-fatal
+            // if missing; the UI just shows an empty Sessions tab.
+            try {
+              const stored = localStorage.getItem(`flood_sessions_${localUser.id}`);
+              if (stored) setSessions(JSON.parse(stored));
+            } catch {
+              /* ignore */
+            }
+            return;
+          }
+        } catch {
+          // Network failure (CRM Vercel down / Upstash blip) — fall
+          // through to the legacy path so a user with localStorage
+          // tokens can still load the app while the cookie path is
+          // unavailable.
+        }
+
+        // ── 2. Legacy localStorage path (transitional) ───────────
         const storedToken = localStorage.getItem(TOKEN_KEY);
         const storedUser = localStorage.getItem(USER_KEY);
-        // Guard against stale "undefined" / "null" strings written by earlier bugs
         if (!storedToken || !storedUser
             || storedToken === "undefined" || storedToken === "null"
             || storedUser === "undefined"  || storedUser === "null") {
-          // Wipe corrupt values so they don't interfere on next load
           clearStorage();
           return;
         }
 
-        // If access token is already expired or within refresh window, refresh now
         let activeToken = storedToken;
         if (msUntilExpiry(storedToken) <= REFRESH_AHEAD_MS) {
           const refreshed = await silentRefresh();
-          if (!refreshed) return; // refresh failed → already redirected to login
+          if (!refreshed) return;
           activeToken = refreshed;
         }
 
         setAccessToken(activeToken);
         setUser(JSON.parse(storedUser));
-
-        // Schedule next auto-refresh before this token expires
         scheduleRefresh(activeToken, () => silentRefresh());
 
         const uid = (JSON.parse(storedUser) as User).id;
