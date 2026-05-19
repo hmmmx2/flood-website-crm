@@ -111,6 +111,48 @@ export type VerifyResult =
  * Edge-runtime compatible: `jose` is built for it; no Node-only APIs
  * are used. The middleware can call this directly.
  */
+/**
+ * Derive the HMAC signing key from a secret string the SAME WAY the
+ * Java backend does. See `JwtTokenProvider.getSigningKey()`:
+ *
+ *   1. If the secret is a long-enough all-hex string, hex-decode it.
+ *      This is the production path — `JWT_SECRET` is a 128-char hex
+ *      string (= 64 bytes / 512-bit key, signed with HS512).
+ *   2. Otherwise, try Base64.
+ *   3. Otherwise, fall back to the raw UTF-8 bytes.
+ *
+ * Without this mirror, the previous `new TextEncoder().encode(secret)`
+ * was using the 128-byte UTF-8 representation of the hex string —
+ * NOT the 64 raw bytes Java actually signs with — and every
+ * Java-issued token failed verification with `invalid-signature`.
+ * (Reproduced empirically before this commit.)
+ */
+function deriveHmacKey(secret: string): Uint8Array {
+  // Path 1 — hex (Java's preferred path).
+  if (/^[0-9a-fA-F]+$/.test(secret) && secret.length >= 64) {
+    const bytes = new Uint8Array(secret.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(secret.slice(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+  }
+  // Path 2 — base64.
+  try {
+    if (typeof Buffer !== "undefined") {
+      const buf = Buffer.from(secret, "base64");
+      // `Buffer.from(x, "base64")` is silently permissive — verify
+      // the round-trip before trusting the decode.
+      if (buf.length > 0 && buf.toString("base64").replace(/=+$/, "") === secret.replace(/=+$/, "")) {
+        return new Uint8Array(buf);
+      }
+    }
+  } catch {
+    // fall through to UTF-8
+  }
+  // Path 3 — raw UTF-8 bytes (last resort).
+  return new TextEncoder().encode(secret);
+}
+
 export async function verifyJwtSignature(
   token: string | null | undefined,
   secret: string | null | undefined,
@@ -122,9 +164,15 @@ export async function verifyJwtSignature(
     return { ok: false, reason: "no-secret" };
   }
   try {
-    const key = new TextEncoder().encode(secret);
+    const key = deriveHmacKey(secret);
     const { payload } = await jwtVerify(token, key, {
-      algorithms: ["HS256"],
+      // Accept BOTH algorithms. Production Java's
+      // io.jsonwebtoken auto-selects HS512 because the hex-decoded
+      // key is 64 bytes / 512 bits. If a future change shortens the
+      // secret to 32 bytes (256 bits) Java would emit HS256; we
+      // keep that path open so a rotation doesn't break the CRM.
+      // `alg: none` is still rejected — jose enforces the allowlist.
+      algorithms: ["HS256", "HS512"],
     });
     return { ok: true, payload: payload as JwtPayload };
   } catch (err) {
