@@ -20,7 +20,8 @@ import NodeMap from "@/components/map/NodeMap";
 import { useAuth } from "@/lib/AuthContext";
 import { authFetchJson } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
-import { NodeData, getStatusLabel } from "@/lib/types";
+import { NodeData, getStatusLabel, type Zone } from "@/lib/types";
+import { useIoTStream } from "@/components/providers/IoTEventProvider";
 import {
   RISK_COLORS,
   RISK_LABELS,
@@ -33,7 +34,24 @@ import {
   generateHourlyFallback,
 } from "@/lib/floodRiskMock";
 import FloodRiskChart, { type FloodRiskVariant } from "@/components/charts/FloodRiskChart";
-import { validateSseSensorDto, type SseSensorDto } from "@/lib/sseValidation";
+
+// ── IoT zone → NodeData adapter (same pattern as map + sensors) ────────────
+function zoneToNodeData(z: Zone): NodeData {
+  return {
+    _id: z.id,
+    node_id: z.nodeId ?? z.id,
+    name: z.name,
+    area: z.area,
+    location: z.area,
+    state: z.state,
+    latitude: z.centroidLat,
+    longitude: z.centroidLng,
+    current_level: z.worstLevel,
+    is_dead: z.allOffline,
+    last_updated: z.lastUpdated ?? new Date().toISOString(),
+    created_at: z.lastUpdated ?? new Date().toISOString(),
+  };
+}
 
 interface AnalyticsData {
   stats: { label: string; value: string; trend: string }[];
@@ -42,25 +60,6 @@ interface AnalyticsData {
   waterLevelByNode: { nodeId: string; level: number; status: string }[];
   floodByState: { state: string; total: number }[];
   recentEvents: { title: string; timestamp: string; type: string }[];
-}
-
-// ── SSE support ───────────────────────────────────────────────────────────────
-
-function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
-  return {
-    _id: dto.id,
-    node_id: dto.nodeId,
-    name: dto.name ?? "",
-    area: dto.area,
-    location: dto.location,
-    state: dto.state,
-    latitude: dto.latitude,
-    longitude: dto.longitude,
-    current_level: dto.currentLevel,
-    is_dead: dto.isDead ?? dto.status === "inactive",
-    last_updated: dto.lastUpdated,
-    created_at: prev?.created_at ?? dto.lastUpdated,
-  };
 }
 
 const monthLabels = Array.from({ length: 5 }, (_, i) => {
@@ -81,6 +80,11 @@ type RiskScale = "hourly" | "daily" | "weekly" | "monthly";
 export default function DashboardPage() {
   const { isDark } = useTheme();
   const { accessToken, silentRefresh } = useAuth();
+  // QA — Subscribe to the shared IoT event stream so the dashboard
+  // refreshes on flood_level / node_online / node_offline events
+  // (mounted by app/layout.tsx via <IoTEventProvider>). Was a direct
+  // EventSource on the legacy Java /api/sse/sensors stream.
+  const { subscribe: subscribeIoT } = useIoTStream();
   const [nodes, setNodes] = useState<NodeData[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,21 +119,22 @@ export default function DashboardPage() {
     if (isFirstFetch.current) queueMicrotask(() => setIsLoading(true));
     let cancelled = false;
 
-    const nodesP = authFetchJson<{ success: boolean; data: NodeData[] }>(
-      "/api/nodes",
-      accessToken,
-      silentRefresh,
-    )
-      .then((result) => {
+    // QA — migrated from Java `/api/nodes` to the FloodWatch IoT
+    // BFF `/api/iot/zones`. Same NodeData[] shape coming out;
+    // adapted at the boundary by `zoneToNodeData`. The IoT BFF is
+    // public so no auth wrapper / token refresh dance is needed.
+    const nodesP = fetch("/api/iot/zones", { cache: "no-store" })
+      .then(async (res) => {
         if (cancelled) return;
-        if (result.success && Array.isArray(result.data)) {
-          setNodes(result.data);
-          setLastFetch(new Date());
-          isFirstFetch.current = false;
-        }
+        if (!res.ok) throw new Error("Failed to fetch sensor zones");
+        const zones = (await res.json()) as Zone[];
+        if (!Array.isArray(zones)) throw new Error("Unexpected zones payload");
+        setNodes(zones.map(zoneToNodeData));
+        setLastFetch(new Date());
+        isFirstFetch.current = false;
       })
       .catch((error) => {
-        console.error("Error fetching nodes:", error);
+        console.error("Error fetching IoT zones:", error);
         if (!cancelled && isFirstFetch.current) {
           toast.error("Failed to load sensor data. Please refresh.");
         }
@@ -154,34 +159,55 @@ export default function DashboardPage() {
     };
   }, [accessToken, silentRefresh]);
 
-  // SSE real-time updates (replaces setInterval polling)
+  // Live updates via the IoTEventProvider mounted in app/layout.tsx.
+  //
+  // Was: a direct `EventSource("/api/sse/sensors")` that proxied the
+  // legacy Java sensor stream. Migrated to subscribe to the shared
+  // IoT stream so the dashboard moves in lockstep with the map +
+  // alerts pages and the contract is the same across the app.
+  // Debounce-refetch the IoT zones snapshot when a relevant event
+  // fires; ignore heartbeats (no semantic change for KPI tiles).
+  const dashRefetchRef = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
-    if (!accessToken || !liveDataEnabled) return;
-
-    const es = new EventSource("/api/sse/sensors");
-    es.addEventListener("sensor-update", (e: MessageEvent) => {
+    dashRefetchRef.current = async () => {
       try {
-        // QA P1-7: validate the payload before mutating React state.
-        // A malformed event (string lat, out-of-range currentLevel,
-        // missing fields after a schema drift on the Java side) used
-        // to silently coerce and corrupt the dashboard.
-        const raw = JSON.parse(e.data as string);
-        const dto = validateSseSensorDto(raw);
-        if (!dto) return;
-        setNodes(prev => {
-          const idx = prev.findIndex(n => n._id === dto.id);
-          const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
-          if (idx === -1) return [...prev, updated];
-          const next = [...prev];
-          next[idx] = updated;
-          return next;
-        });
-        setLastFetch(new Date());
-      } catch { /* malformed JSON — ignore */ }
-    });
+        const r = await fetch("/api/iot/zones", { cache: "no-store" });
+        if (!r.ok) return;
+        const zones = (await r.json()) as Zone[];
+        if (Array.isArray(zones)) {
+          setNodes(zones.map(zoneToNodeData));
+          setLastFetch(new Date());
+        }
+      } catch {
+        // network blip — keep the previous snapshot until next event
+      }
+    };
+  });
 
-    return () => es.close();
-  }, [accessToken, liveDataEnabled]);
+  useEffect(() => {
+    if (!liveDataEnabled) return;
+    let scheduled: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (scheduled) return;
+      scheduled = setTimeout(() => {
+        scheduled = null;
+        void dashRefetchRef.current();
+      }, 1000);
+    };
+    const unsub = subscribeIoT((event) => {
+      if (
+        event.type === "flood_level" ||
+        event.type === "node_online" ||
+        event.type === "node_offline"
+      ) {
+        scheduleRefetch();
+      }
+    });
+    return () => {
+      unsub?.();
+      if (scheduled) clearTimeout(scheduled);
+    };
+  }, [liveDataEnabled, subscribeIoT]);
 
   // Statistics from real-time data
   const stats = useMemo(() => {

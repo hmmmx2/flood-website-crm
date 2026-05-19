@@ -5,11 +5,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import StatusPill from "@/components/common/StatusPill";
 import { useAuth } from "@/lib/AuthContext";
-import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
-import { NodeData, getWaterLevelStatus, getNodeStatus } from "@/lib/types";
+import { NodeData, getWaterLevelStatus, getNodeStatus, type Zone } from "@/lib/types";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { validateSseSensorDto, type SseSensorDto } from "@/lib/sseValidation";
+import { useIoTStream } from "@/components/providers/IoTEventProvider";
+
+// ── IoT zone → NodeData adapter ──────────────────────────────────────────────
+//
+// Same pattern as the CRM map page: the sensors page is written
+// against the legacy `NodeData` shape, and the FloodWatch IoT BFF
+// returns `Zone`. Adapt at the boundary so the page logic doesn't
+// need to change.
+function zoneToNodeData(z: Zone): NodeData {
+  return {
+    _id: z.id,
+    node_id: z.nodeId ?? z.id,
+    name: z.name,
+    area: z.area,
+    location: z.area,
+    state: z.state,
+    latitude: z.centroidLat,
+    longitude: z.centroidLng,
+    current_level: z.worstLevel,
+    is_dead: z.allOffline,
+    last_updated: z.lastUpdated ?? new Date().toISOString(),
+    created_at: z.lastUpdated ?? new Date().toISOString(),
+  };
+}
 
 // Export Icon
 function ExportIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -49,25 +71,6 @@ function RefreshIcon(props: React.SVGProps<SVGSVGElement>) {
       <path d="M16 16h5v5" />
     </svg>
   );
-}
-
-// ── SSE support ───────────────────────────────────────────────────────────────
-
-function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
-  return {
-    _id: dto.id,
-    node_id: dto.nodeId,
-    name: dto.name ?? "",
-    area: dto.area,
-    location: dto.location,
-    state: dto.state,
-    latitude: dto.latitude,
-    longitude: dto.longitude,
-    current_level: dto.currentLevel,
-    is_dead: dto.isDead ?? dto.status === "inactive",
-    last_updated: dto.lastUpdated,
-    created_at: prev?.created_at ?? dto.lastUpdated,
-  };
 }
 
 // Transform NodeData for table display
@@ -134,33 +137,33 @@ export default function SensorsPage() {
     return () => window.removeEventListener("storage", loadSettings);
   }, []);
 
-  // Fetch nodes data from API
+  // Fetch nodes data from API.
+  //
+  // QA fix — migrated from the legacy Java `/api/nodes` (which depended
+  // on the Spring Boot service's sensor table) to the FloodWatch IoT
+  // BFF `/api/iot/zones`. Same shape coming out (NodeData[]) because we
+  // adapt at the boundary — see `zoneToNodeData` below. The IoT BFF is
+  // public (no auth gate) so the `accessToken` check is no longer
+  // strictly required for the fetch, but we keep it as the
+  // authentication-state signal for the page.
   const fetchNodes = useCallback(async () => {
     if (!accessToken) { setIsLoading(false); return; }
     if (isFirstFetch.current) setIsLoading(true);
     try {
-      const response = await authFetch("/api/nodes", accessToken, silentRefresh);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch nodes");
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        setNodes(result.data);
-        setLastFetch(new Date());
-        setError(null);
-        isFirstFetch.current = false;
-      } else {
-        throw new Error(result.error || "Failed to fetch nodes");
-      }
+      const response = await fetch("/api/iot/zones", { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to fetch sensor zones");
+      const zones = (await response.json()) as Zone[];
+      if (!Array.isArray(zones)) throw new Error("Unexpected zones payload");
+      setNodes(zones.map(zoneToNodeData));
+      setLastFetch(new Date());
+      setError(null);
+      isFirstFetch.current = false;
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, silentRefresh]);
+  }, [accessToken]);
 
   // Initial fetch
   useEffect(() => {
@@ -168,31 +171,41 @@ export default function SensorsPage() {
     fetchNodes();
   }, [accessToken, fetchNodes]);
 
-  // SSE real-time updates (replaces setInterval polling)
+  // Live updates via the IoT event provider (mounted in app/layout.tsx).
+  // Replaces the legacy /api/sse/sensors stream which proxied the Java
+  // sensor service. We subscribe to flood_level / node_online /
+  // node_offline events and debounce-refetch /api/iot/zones — same
+  // pattern the CRM map uses.
+  const { subscribe: subscribeIoT } = useIoTStream();
+  const fetchNodesRef = useRef(fetchNodes);
+  useEffect(() => {
+    fetchNodesRef.current = fetchNodes;
+  }, [fetchNodes]);
+
   useEffect(() => {
     if (!accessToken || !autoRefresh) return;
-
-    const es = new EventSource("/api/sse/sensors");
-    es.addEventListener("sensor-update", (e: MessageEvent) => {
-      try {
-        // QA P1-7: validate the SSE payload before touching React state.
-        const raw = JSON.parse(e.data as string);
-        const dto = validateSseSensorDto(raw);
-        if (!dto) return;
-        setNodes(prev => {
-          const idx = prev.findIndex(n => n._id === dto.id);
-          const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
-          if (idx === -1) return [...prev, updated];
-          const next = [...prev];
-          next[idx] = updated;
-          return next;
-        });
-        setLastFetch(new Date());
-      } catch { /* malformed JSON — ignore */ }
+    let scheduled: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (scheduled) return;
+      scheduled = setTimeout(() => {
+        scheduled = null;
+        void fetchNodesRef.current();
+      }, 1000);
+    };
+    const unsub = subscribeIoT((event) => {
+      if (
+        event.type === "flood_level" ||
+        event.type === "node_online" ||
+        event.type === "node_offline"
+      ) {
+        scheduleRefetch();
+      }
     });
-
-    return () => es.close();
-  }, [accessToken, autoRefresh]);
+    return () => {
+      unsub?.();
+      if (scheduled) clearTimeout(scheduled);
+    };
+  }, [accessToken, autoRefresh, subscribeIoT]);
 
   // Transform nodes to table rows
   const tableRows: SensorTableRow[] = useMemo(() => {
