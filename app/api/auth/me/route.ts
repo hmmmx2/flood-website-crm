@@ -169,15 +169,25 @@ export async function GET(req: NextRequest) {
       profile = await javaFetch<JavaProfile>("/profile", { token });
     } catch (err) {
       const status = (err as { status?: number }).status;
-      if (status === 401 || status === 403) {
-        // Java rejected the token — treat as unauthenticated.
-        return unauthenticated("java_rejected");
+      // QA P1-3 — terminal failures (token revoked or user deleted)
+      // MUST clear cookies. Transient failures (cold start, 5xx, network
+      // blip) keep the cookies + synthesise a minimal profile so the
+      // user isn't dropped during a Railway warm-up.
+      //
+      //   401 / 403  → token rejected server-side (revoked, role drop)
+      //   404        → user record gone (account deletion)
+      //
+      // Everything else (500, 502, 503, network) falls through to the
+      // P0-7 synthesised path — Java's signature check is still the
+      // wall against forgery (a "stale revoked token" can't actually
+      // be replayed against Java because Java is the thing rejecting
+      // it, and the Edge middleware's signature check + JWT expiry
+      // are the additional walls).
+      if (status === 401 || status === 403 || status === 404) {
+        return unauthenticated(
+          status === 404 ? "user_gone" : "java_rejected",
+        );
       }
-      // QA P0-7: synthesise a minimal profile from the JWT claims so
-      // the user can still navigate while Java is warming up. Mark
-      // the response so AuthContext shows a "service starting" banner
-      // and a retry button instead of leaving the operator with a
-      // blank avatar + no name (which looks like the system is broken).
       profile = {
         id: sub,
         email: typeof payload?.email === "string" ? payload.email : "",

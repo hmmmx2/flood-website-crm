@@ -6,23 +6,9 @@ import { useAuth } from "@/lib/AuthContext";
 import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 import { NodeData, getStatusLabel } from "@/lib/types";
+import { validateSseSensorDto, type SseSensorDto } from "@/lib/sseValidation";
 
 // ── SSE support ───────────────────────────────────────────────────────────────
-
-type SseSensorDto = {
-  id: string;
-  nodeId: string;
-  name?: string;
-  area: string;
-  location: string;
-  state: string;
-  latitude: number;
-  longitude: number;
-  currentLevel: 0 | 1 | 2 | 3;
-  status: "active" | "warning" | "critical" | "inactive";
-  isDead?: boolean;
-  lastUpdated: string;
-};
 
 function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
   return {
@@ -500,7 +486,10 @@ export default function AlertsPage() {
     const es = new EventSource("/api/sse/sensors");
     es.addEventListener("sensor-update", (e: MessageEvent) => {
       try {
-        const dto: SseSensorDto = JSON.parse(e.data as string);
+        // QA P1-7: validate the SSE payload before touching React state.
+        const raw = JSON.parse(e.data as string);
+        const dto = validateSseSensorDto(raw);
+        if (!dto) return;
         setNodes(prev => {
           const idx = prev.findIndex(n => n._id === dto.id);
           const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
@@ -510,7 +499,7 @@ export default function AlertsPage() {
           return next;
         });
         setLastFetched(new Date());
-      } catch { /* malformed event — ignore */ }
+      } catch { /* malformed JSON — ignore */ }
     });
 
     return () => es.close();
@@ -706,7 +695,18 @@ export default function AlertsPage() {
             <RefreshIcon className="h-5 w-5" />
           </button>
 
-          {/* Calendar Date Picker */}
+          {/*
+            QA P1-6 — date filter limitations.
+            Alerts on this page are synthesised from CURRENT node
+            state (see disclaimer below), not from an alert-history
+            store. The date filter is best-effort: it narrows by node
+            "last updated" timestamp, NOT by alert occurrence time.
+            A proper range picker + range validation belongs in a
+            follow-up wired to /api/iot/alerts/history. For now, a
+            single-date picker is the honest UI: there's no range to
+            validate. Future dates are accepted (no harm; just an
+            empty result set).
+          */}
           <CalendarDropdown
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}

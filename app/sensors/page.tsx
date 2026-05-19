@@ -9,6 +9,7 @@ import { authFetch } from "@/lib/authFetch";
 import { useTheme } from "@/lib/ThemeContext";
 import { NodeData, getWaterLevelStatus, getNodeStatus } from "@/lib/types";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { validateSseSensorDto, type SseSensorDto } from "@/lib/sseValidation";
 
 // Export Icon
 function ExportIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -51,21 +52,6 @@ function RefreshIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 // ── SSE support ───────────────────────────────────────────────────────────────
-
-type SseSensorDto = {
-  id: string;
-  nodeId: string;
-  name?: string;
-  area: string;
-  location: string;
-  state: string;
-  latitude: number;
-  longitude: number;
-  currentLevel: 0 | 1 | 2 | 3;
-  status: "active" | "warning" | "critical" | "inactive";
-  isDead?: boolean;
-  lastUpdated: string;
-};
 
 function sseToNodeData(dto: SseSensorDto, prev?: NodeData): NodeData {
   return {
@@ -189,7 +175,10 @@ export default function SensorsPage() {
     const es = new EventSource("/api/sse/sensors");
     es.addEventListener("sensor-update", (e: MessageEvent) => {
       try {
-        const dto: SseSensorDto = JSON.parse(e.data as string);
+        // QA P1-7: validate the SSE payload before touching React state.
+        const raw = JSON.parse(e.data as string);
+        const dto = validateSseSensorDto(raw);
+        if (!dto) return;
         setNodes(prev => {
           const idx = prev.findIndex(n => n._id === dto.id);
           const updated = sseToNodeData(dto, idx >= 0 ? prev[idx] : undefined);
@@ -199,7 +188,7 @@ export default function SensorsPage() {
           return next;
         });
         setLastFetch(new Date());
-      } catch { /* malformed event — ignore */ }
+      } catch { /* malformed JSON — ignore */ }
     });
 
     return () => es.close();
