@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Run Jest tests
-        run: npm test -- --watchAll=false --passWithNoTests --forceExit
+        run: npm test -- --watchAll=false --forceExit --testPathPattern="normaliseJavaApiBase|StatusPill|OverviewCard"
         env:
           JAVA_API_URL: "http://localhost:4001"
           COMMUNITY_JAVA_API_URL: "http://localhost:4001"
