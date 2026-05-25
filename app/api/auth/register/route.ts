@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const result = await javaFetch<unknown>("/auth/register", { method: "POST", body });
-    return NextResponse.json(result);
+    const result = await javaFetch<{ user?: unknown }>("/auth/register", { method: "POST", body });
+    return NextResponse.json({ user: result.user });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Registration failed";
     const status = (error as { status?: number }).status ?? 500;

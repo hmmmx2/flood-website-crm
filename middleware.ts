@@ -50,6 +50,16 @@ import {
 } from "@/lib/jwtPayload";
 import { isOperatorJwtRole } from "@/lib/permissions";
 
+const CSRF_COOKIE = "flood_csrf_token";
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const CSRF_EXEMPT_API_PATHS = new Set([
+  "/api/auth/csrf",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/refresh",
+  "/api/auth/sso/redeem",
+]);
+
 /**
  * Build the /login redirect URL with an error code so the form can
  * render the right banner (H.7). Preserves the originally-requested
@@ -73,6 +83,23 @@ function loginRedirect(req: NextRequest, errorCode: string): NextResponse {
 }
 
 export async function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    if (
+      MUTATING_METHODS.has(req.method.toUpperCase()) &&
+      !CSRF_EXEMPT_API_PATHS.has(req.nextUrl.pathname)
+    ) {
+      const cookieToken = req.cookies.get(CSRF_COOKIE)?.value;
+      const headerToken = req.headers.get("x-csrf-token");
+      if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+        return NextResponse.json(
+          { error: "CSRF token missing or invalid" },
+          { status: 403 },
+        );
+      }
+    }
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get(ACCESS_COOKIE)?.value;
 
   // No cookie → no session. AppShellWrapper will also redirect on the
@@ -175,6 +202,6 @@ export const config = {
      * - images (raw public/images/* assets — login hero, logo, etc.)
      * - favicon.ico, icon.png, apple-icon.png, manifest.webmanifest
      */
-    "/((?!login|auth/callback|api|_next/static|_next/image|images|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest).*)",
+    "/((?!login|auth/callback|_next/static|_next/image|images|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest).*)",
   ],
 };

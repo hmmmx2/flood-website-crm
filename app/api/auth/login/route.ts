@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   // Cookie lifetimes intentionally generous; the middleware will reject
   // any cookie whose decoded JWT `exp` has elapsed, so the Set-Cookie
   // Max-Age is a soft upper bound — Java's own exp claim is the wall.
-  const response = NextResponse.json(result);
+  const response = NextResponse.json({ user: result.user });
 
   if (accessToken) {
     // Match the upstream JWT lifetime if we can read it, else 1 h.

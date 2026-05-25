@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 
 import { normaliseJavaApiBase } from "@/lib/normaliseJavaApiBase";
 import { roleFromJwtOrApiRole } from "@/lib/permissions";
+import { authFetch } from "@/lib/authFetch";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -99,11 +100,7 @@ const JAVA_API = normaliseJavaApiBase(
 const TOKEN_KEY = "flood_access_token";
 const REFRESH_KEY = "flood_refresh_token";
 const USER_KEY = "flood_auth_user";
-
-function storeTokens(access: string, refresh: string) {
-  localStorage.setItem(TOKEN_KEY, access);
-  localStorage.setItem(REFRESH_KEY, refresh);
-}
+const COOKIE_SESSION_SENTINEL = "cookie-session";
 
 function clearStorage() {
   localStorage.removeItem(TOKEN_KEY);
@@ -143,11 +140,6 @@ type JavaUser = {
 };
 
 type LoginResponse = {
-  session: {
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: string;
-  };
   user: JavaUser;
 };
 
@@ -267,9 +259,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // schedule OR an authFetch 401-retry path) doesn't need to know
   // the difference.
   const silentRefresh = useCallback(async (): Promise<string | null> => {
-    const storedRefresh = localStorage.getItem(REFRESH_KEY);
-    if (!storedRefresh) return null;
-
     const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000];
     let lastFailureWasTerminal = false;
 
@@ -278,16 +267,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await fetch("/api/auth/refresh", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken: storedRefresh }),
+          credentials: "include",
           // Tight per-attempt timeout; the retry loop is the
           // budget mechanism.
           signal: makeSignal(6_000),
         });
         if (res.ok) {
-          const data: { accessToken: string } = await res.json();
-          localStorage.setItem(TOKEN_KEY, data.accessToken);
-          setAccessToken(data.accessToken);
-          return data.accessToken;
+          setAccessToken(COOKIE_SESSION_SENTINEL);
+          return COOKIE_SESSION_SENTINEL;
         }
         // 4xx — Java rejected the refresh. Token is dead; no
         // point retrying. Break out and logout below.
@@ -340,6 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const init = async () => {
       try {
+        clearStorage();
         // ── 1. Cookie path: /api/auth/me ─────────────────────────
         try {
           const meRes = await fetch("/api/auth/me", {
@@ -377,6 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               smsAlerts: false,
             };
             setUser(localUser);
+            setAccessToken(COOKIE_SESSION_SENTINEL);
             // Pull the legacy sessions list if it survives — non-fatal
             // if missing; the UI just shows an empty Sessions tab.
             try {
@@ -395,29 +384,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // ── 2. Legacy localStorage path (transitional) ───────────
-        const storedToken = localStorage.getItem(TOKEN_KEY);
-        const storedUser = localStorage.getItem(USER_KEY);
-        if (!storedToken || !storedUser
-            || storedToken === "undefined" || storedToken === "null"
-            || storedUser === "undefined"  || storedUser === "null") {
-          clearStorage();
-          return;
-        }
-
-        let activeToken = storedToken;
-        if (msUntilExpiry(storedToken) <= REFRESH_AHEAD_MS) {
-          const refreshed = await silentRefresh();
-          if (!refreshed) return;
-          activeToken = refreshed;
-        }
-
-        setAccessToken(activeToken);
-        setUser(JSON.parse(storedUser));
-        scheduleRefresh(activeToken, () => silentRefresh());
-
-        const uid = (JSON.parse(storedUser) as User).id;
-        const stored = localStorage.getItem(`flood_sessions_${uid}`);
-        if (stored) setSessions(JSON.parse(stored));
+        setUser(null);
+        setAccessToken(null);
       } catch {
         clearStorage();
       } finally {
@@ -437,11 +405,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const data = await javaPost<LoginResponse>("/auth/login", { email, password });
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Login failed" }));
+        throw new Error(err.error ?? err.message ?? "Login failed");
+      }
+      const data = (await res.json()) as LoginResponse;
 
-      storeTokens(data.session.accessToken, data.session.refreshToken);
       const localUser = toLocalUser(data.user);
-      localStorage.setItem(USER_KEY, JSON.stringify(localUser));
 
       // Create a local session record for the sessions panel
       const sessionInfo = generateSessionInfo();
@@ -458,12 +434,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userSessions.length > 10) userSessions = userSessions.slice(0, 10);
       localStorage.setItem(`flood_sessions_${localUser.id}`, JSON.stringify(userSessions));
 
-      setAccessToken(data.session.accessToken);
+      setAccessToken(COOKIE_SESSION_SENTINEL);
       setUser(localUser);
       setSessions(userSessions);
-
-      // Schedule auto-refresh before token expires
-      scheduleRefresh(data.session.accessToken, () => silentRefresh());
 
       return { success: true };
     } catch (error) {
@@ -472,7 +445,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error: error instanceof Error ? error.message : "Login failed",
       };
     }
-  }, [scheduleRefresh, silentRefresh]);
+  }, []);
 
   const register = useCallback(async (
     name: string,
@@ -490,18 +463,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firstName = nameParts[0];
       const lastName = nameParts.slice(1).join(" ") || firstName;
 
-      const data = await javaPost<LoginResponse>("/auth/register", {
-        firstName,
-        lastName,
-        email,
-        password,
+      const res = await authFetch("/api/auth/register", COOKIE_SESSION_SENTINEL, silentRefresh, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, lastName, email, password }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Registration failed" }));
+        throw new Error(err.error ?? err.message ?? "Registration failed");
+      }
+      const data = (await res.json()) as LoginResponse;
 
-      storeTokens(data.session.accessToken, data.session.refreshToken);
       const localUser = toLocalUser(data.user);
-      localStorage.setItem(USER_KEY, JSON.stringify(localUser));
 
-      setAccessToken(data.session.accessToken);
+      setAccessToken(COOKIE_SESSION_SENTINEL);
       setUser(localUser);
 
       return { success: true };
@@ -543,21 +518,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return null;
       const updated = { ...prev, ...userData };
-      localStorage.setItem(USER_KEY, JSON.stringify(updated));
-      // Sync to Java API (fire-and-forget)
-      if (accessToken) {
-        const { name, phone, department } = updated;
-        const nameParts = name.split(" ");
-        javaPatch("/profile", {
-          firstName: nameParts[0],
-          lastName: nameParts.slice(1).join(" ") || nameParts[0],
-          phone,
-          locationLabel: department,
-        }, accessToken).catch(console.error);
-      }
       return updated;
     });
-  }, [accessToken]);
+  }, [silentRefresh]);
 
   // QA P0-7: lets AppShellWrapper "Retry" button re-hit /api/auth/me
   // and clear the cold-start banner once Java is warm.
@@ -608,10 +571,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (newPassword === currentPassword) return { success: false, error: "New password must differ from current" };
 
     try {
-      await javaPost("/auth/change-password", {
-        currentPassword,
-        newPassword,
-      }, accessToken ?? undefined);
+      const res = await authFetch("/api/auth/change-password", accessToken ?? COOKIE_SESSION_SENTINEL, silentRefresh, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Password change failed" }));
+        throw new Error(err.error ?? err.message ?? "Password change failed");
+      }
 
       setUser((prev) =>
         prev ? { ...prev, passwordLastChanged: new Date().toISOString() } : null
@@ -623,7 +591,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error: error instanceof Error ? error.message : "Password change failed",
       };
     }
-  }, [user, accessToken]);
+  }, [user, accessToken, silentRefresh]);
 
   // TODO: UI-only until TOTP backend is implemented — currently just toggles the local flag
   const toggleTwoFactor = useCallback(async (): Promise<{ success: boolean; enabled: boolean }> => {

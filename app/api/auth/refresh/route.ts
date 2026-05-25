@@ -17,19 +17,7 @@ import { decodeJwtPayload } from "@/lib/jwtPayload";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  let body: { refreshToken?: string } = {};
-  try {
-    body = (await req.json()) as { refreshToken?: string };
-  } catch {
-    /* allow empty body — fall back to cookie below */
-  }
-
-  // Prefer the refresh token from the cookie (server-trusted) over
-  // any client-supplied value in the body. The body path stays for
-  // backwards-compat with the legacy AuthContext flow until that's
-  // migrated entirely off localStorage.
-  const refreshToken =
-    req.cookies.get(REFRESH_COOKIE)?.value ?? body.refreshToken;
+  const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
   if (!refreshToken) {
     return NextResponse.json(
       { error: "No refresh token available." },
@@ -51,7 +39,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const res = NextResponse.json(data);
+  const res = NextResponse.json({ ok: true });
 
   // Rotate the access cookie. Java returns only a new access token —
   // refresh token lives unchanged in the existing cookie.

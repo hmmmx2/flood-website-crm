@@ -25,7 +25,6 @@
  *     forwarding tokens to the browser.
  *   • `middleware.ts` — verifies signature (when secret available)
  *     then checks `role` + `exp` on the access-token cookie.
- *   • `app/auth/callback/page.tsx` + `app/api/auth/session/route.ts`
  *     — gate the community SSO handoff on `role`.
  */
 

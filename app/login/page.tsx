@@ -4,9 +4,8 @@ import { redirect } from "next/navigation";
  * CRM has no login form of its own — there is exactly ONE sign-in
  * surface across the FloodWatch stack: the community website. CRM
  * users sign in there, get bounced back to `/auth/callback` with
- * tokens in the URL, and from there the operator-class gates take
- * over (pre-hydration script + `/api/auth/session` + middleware +
- * `AppShellWrapper`).
+ * a one-time SSO code, and from there the operator-class gates take
+ * over (server callback + middleware + `AppShellWrapper`).
  *
  * This route is a zero-JS server-side 307 to the community login.
  *
@@ -22,7 +21,6 @@ import { redirect } from "next/navigation";
  *
  * Security note: the absence of a form here does NOT weaken the
  * access controls. The downstream gates all remain in place:
- *   • /api/auth/session   — server-side role gate when /auth/callback POSTs
  *   • /api/auth/login     — server-side role gate (defence-in-depth;
  *                            no UI calls it today but stays armed)
  *   • /auth/callback init — pre-hydration role gate (H.5)

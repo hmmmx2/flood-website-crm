@@ -9,29 +9,40 @@
 
 type SilentRefreshFn = () => Promise<string | null>;
 
+async function csrfHeader(method?: string): Promise<Record<string, string>> {
+  const verb = (method ?? "GET").toUpperCase();
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(verb)) return {};
+  const res = await fetch("/api/auth/csrf", { cache: "no-store" });
+  if (!res.ok) return {};
+  const data = (await res.json()) as { csrfToken?: string };
+  return data.csrfToken ? { "X-CSRF-Token": data.csrfToken } : {};
+}
+
 export async function authFetch(
   url: string,
-  token: string,
+  _token: string,
   silentRefresh: SilentRefreshFn,
   options: RequestInit = {}
 ): Promise<Response> {
-  const makeRequest = (t: string) =>
+  const extraHeaders = await csrfHeader(options.method);
+  const makeRequest = () =>
     fetch(url, {
       ...options,
       cache: "no-store",
       headers: {
         ...(options.headers ?? {}),
-        Authorization: `Bearer ${t}`,
+        ...extraHeaders,
       },
+      credentials: "same-origin",
     });
 
-  let res = await makeRequest(token);
+  let res = await makeRequest();
 
   // On auth failure, try to silently refresh once then retry
   if (res.status === 401 || res.status === 403) {
     const newToken = await silentRefresh();
     if (newToken) {
-      res = await makeRequest(newToken);
+      res = await makeRequest();
     }
   }
 
