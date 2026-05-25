@@ -1,0 +1,64 @@
+name: "FloodWatch CRM — CI/CD"
+
+on:
+  push:
+    branches: [testing]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: "Jest Unit Tests"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest tests
+        run: npm test -- --watchAll=false --passWithNoTests --forceExit
+        env:
+          JAVA_API_URL: "http://localhost:4001"
+          COMMUNITY_JAVA_API_URL: "http://localhost:4001"
+          NEXT_PUBLIC_COMMUNITY_URL: "http://localhost:3002"
+          AI_API_URL: "http://localhost:8000"
+          FLOODWATCH_API_BASE: "http://localhost/api/v1"
+          FLOODWATCH_DATASET: "sample"
+          JWT_SECRET: "ci-test-secret-at-least-32-characters-long"
+          REDIS_URL: ""
+          NEXT_PUBLIC_GOOGLE_MAPS_KEY: ""
+          NODE_ENV: "test"
+
+  promote:
+    name: "Promote to production branch"
+    needs: test
+    if: success()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push testing to production branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git fetch origin
+          git checkout production
+          git reset --hard origin/testing
+          git push origin production --force
