@@ -27,7 +27,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const AI_API_URL = process.env.AI_API_URL ?? "http://localhost:8000";
+const AI_API_URL = (process.env.AI_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
 type Ok = { success: true; [k: string]: unknown };
 type Fail = {

@@ -78,6 +78,18 @@ cp .env.example .env.local
 
 Edit `.env.local` and fill in the required values (see [Environment Variables](#environment-variables) below).
 
+For a localhost-first setup without the community login app, use the local
+fallback template instead:
+
+```bash
+cp .env.local.example .env.local
+npm run dev:local
+```
+
+That template sets `CRM_LOCAL_LOGIN=true`, so `/login` renders a local CRM
+credentials form. Leave `CRM_LOCAL_LOGIN` unset or `false` on Vercel so
+production keeps redirecting to the community website login.
+
 ### 3. Start the development server
 
 ```bash
@@ -102,6 +114,8 @@ Copy `.env.example` to `.env.local` and set the following:
 | `JAVA_API_URL` | Server-side URL for `flood-service-crm` (used by API routes) | `http://localhost:4002` |
 | `NEXT_PUBLIC_JAVA_API_URL` | Browser-side URL for direct auth calls | `http://localhost:4002` |
 | `NEXT_PUBLIC_COMMUNITY_URL` | URL of the public community portal | `http://localhost:3002` |
+| `CRM_LOCAL_LOGIN` | Local-only CRM login form; leave unset/false on Vercel | `true` |
+| `ALLOW_PAYLOAD_ONLY_AUTH` | Local-only middleware fallback when `JWT_SECRET` is unavailable | `true` |
 | `NEXT_PUBLIC_GOOGLE_MAPS_KEY` | Google Maps JavaScript API key | `AIzaSy...` |
 
 > **Note:** Never commit `.env.local` to version control.
